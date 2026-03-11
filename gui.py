@@ -38,7 +38,7 @@ class ClusterGUI:
         self.initBrowseFrame(row=1)
         self.initDateFrame(row=2)
         self.initInsuranceFrame(row=3)
-        # self.initClusterFrame(row=4)
+        self.initClusterFrame(row=4)
         self.initButtonFrame(row=5)
 
         self.statusLabel = ctk.CTkLabel(master=self.frame, text="")
@@ -76,13 +76,15 @@ class ClusterGUI:
         self.yearEntry.configure(validate="key", validatecommand=(self.frame.register(self.validateYear), "%P"), state="disabled")
 
         img = ctk.CTkImage(dark_image=Image.open(self.datePickerIcon))
-        self.datePickerButton = ctk.CTkButton(master=self.dateFrame, 
-                                                image=img, 
-                                                text="", 
-                                                command=lambda: self.toggleCalendar(),
-                                                width=32, 
-                                                height=32, 
-                                                state="disabled")
+        self.datePickerButton = ctk.CTkButton(
+            master=self.dateFrame, 
+            image=img, 
+            text="", 
+            command=lambda: self.toggleCalendar(),
+            width=32, 
+            height=32, 
+            state="disabled"
+        )
         self.datePickerButton.grid(row=1, column=4, pady=0, padx=(5, 10), sticky="w")
 
     def initInsuranceFrame(self, row):
@@ -93,15 +95,44 @@ class ClusterGUI:
         self.insuranceLabel = ctk.CTkLabel(master=self.insuranceFrame, text="Insurance")
         self.insuranceLabel.grid(row=0, column=0, pady=0, padx=10, sticky="ew")
 
-        self.insuranceCombo = ctk.CTkComboBox(master=self.insuranceFrame, values=list([]), width=110, state="disabled")
+        self.insuranceCombo = ctk.CTkComboBox(master=self.insuranceFrame, values=list([]), width=150, state="disabled")
         self.insuranceCombo.grid(row=1, column=0, pady=0, padx=10, sticky="ew")
 
     def initClusterFrame(self, row):
         self.clusterFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
         self.clusterFrame.grid(row=row, column=0, pady=6, padx=10)
-        self.clusterFrame.grid_columnconfigure(0, weight=1)
+        self.clusterFrame.grid_columnconfigure(1, weight=1)
 
-        # Driver / Cluster size entry (default to 7. Radio button to select)
+        self.clusterLabel = ctk.CTkLabel(master=self.clusterFrame, text="Grouping")
+        self.clusterLabel.grid(row=0, column=0, columnspan=3, pady=0, padx=10, sticky="ew")
+
+        self.clusterVar = ctk.StringVar(value="Size")
+
+        self.clusterEntry = ctk.CTkEntry(master=self.clusterFrame, width=50)
+        self.clusterEntry.grid(row=1, column=1, columnspan=1, pady=0, padx=1)
+        self.clusterEntry.configure(validate="key", validatecommand=(self.frame.register(self.validateYear), "%P"), state="disabled")
+
+        self.sizeRadio = ctk.CTkRadioButton(
+            master=self.clusterFrame, 
+            text="Size", 
+            variable=self.clusterVar, 
+            value="Size",
+            radiobutton_height=20,
+            radiobutton_width=20,
+            state="disabled",
+        )
+        self.sizeRadio.grid(row=1, column=0, columnspan=1,  pady=0, padx=5, sticky="e")
+
+        self.driverRadio = ctk.CTkRadioButton(
+            master=self.clusterFrame, 
+            text="Drivers", 
+            variable=self.clusterVar, 
+            value="Drivers",
+            radiobutton_height=20,
+            radiobutton_width=20,
+            state="disabled",
+        )
+        self.driverRadio.grid(row=1, column=2, columnspan=1, pady=0, padx=5, sticky="w")
 
     def initButtonFrame(self, row):
         self.buttonFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
@@ -134,6 +165,9 @@ class ClusterGUI:
 
             self.insuranceCombo.configure(values=insurances)
             self.insuranceCombo.set(insurances[0])
+
+            self.clusterEntry.delete(0, "end")
+            self.clusterEntry.insert(0, "7")
         else:
             self.folderLabel.configure(text="No members in template", text_color="red")
             self.disableUserActions()
@@ -208,6 +242,9 @@ class ClusterGUI:
         self.datePickerButton.configure(state="disabled")
 
         self.insuranceCombo.configure(state="disabled")
+        self.clusterEntry.configure(state="disabled")
+        self.sizeRadio.configure(state="disabled")
+        self.driverRadio.configure(state="disabled")
         self.calculateButton.configure(state="disabled")
 
     def enableUserActions(self):
@@ -219,6 +256,9 @@ class ClusterGUI:
         self.datePickerButton.configure(state="normal")
 
         self.insuranceCombo.configure(state="normal")
+        self.clusterEntry.configure(state="normal")
+        self.sizeRadio.configure(state="normal")
+        self.driverRadio.configure(state="normal")
         self.calculateButton.configure(state="normal")
 
     def calculate(self):
