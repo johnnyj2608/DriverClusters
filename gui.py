@@ -8,7 +8,7 @@ from customtkinter import filedialog , CTkToplevel
 from tkcalendar import Calendar
 from PIL import Image
 
-from excel import validateExcelFile
+from excel import validateExcelFile, ifExcelFileOpen
 from cluster import cluster
 
 class ProcessStop:
@@ -57,27 +57,25 @@ class ClusterGUI:
 
     def browseFolder(self):
         self.filePath = filedialog.askopenfilename(title="Select a File", filetypes=[("Excel files", "*.xlsx")])
-        if self.filePath:
-            self.members = validateExcelFile(self.filePath)
-            if self.members:
-                self.enableUserActions()
-                fileName = os.path.basename(self.filePath)
-                self.folderLabel.configure(text=fileName, text_color="gray84")
+        if self.filePath and validateExcelFile(self.filePath):
+            self.enableUserActions()
+            fileName = os.path.basename(self.filePath)
+            self.folderLabel.configure(text=fileName, text_color="gray84")
 
-                today = datetime.now()
-                
-                self.monthEntry.delete(0, "end")
-                self.monthEntry.insert(0, today.month)
+            today = datetime.now()
+            
+            self.monthEntry.delete(0, "end")
+            self.monthEntry.insert(0, today.month)
 
-                self.dayEntry.delete(0, "end")
-                self.dayEntry.insert(0, today.day)
+            self.dayEntry.delete(0, "end")
+            self.dayEntry.insert(0, today.day)
 
-                self.yearEntry.delete(0, "end")
-                self.yearEntry.insert(0, today.year)
-            else:
-                self.folderLabel.configure(text="No members in template", text_color="red")
-                self.disableUserActions()
-                self.browseButton.configure(state="normal")
+            self.yearEntry.delete(0, "end")
+            self.yearEntry.insert(0, today.year)
+        else:
+            self.folderLabel.configure(text="No members in template", text_color="red")
+            self.disableUserActions()
+            self.browseButton.configure(state="normal")
 
     def initDateFrame(self):
         self.dateFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
@@ -194,6 +192,10 @@ class ClusterGUI:
             self.stopFlag.value = True
             self.calculateButton.configure(text="Stopping...")
             return
+        
+        if ifExcelFileOpen(self.folderLabel.cget("text")):
+            self.statusLabel.configure(text="Must close selected Excel file", text_color="red")
+            return
 
         self.runningFlag = True
         self.calculateButton.configure(text="Stop", fg_color='#800000', hover_color='#98423d')
@@ -203,14 +205,21 @@ class ClusterGUI:
 
         self.startTime = time.time()
 
+        month = self.monthEntry.get()
+        day = self.dayEntry.get()
+        year = self.yearEntry.get()
+
         thread = Thread(target = cluster, args=(
+            self.folderLabel.cget("text"),
+            datetime(int(year), int(month), int(day)),
+            None,  # insurance
             self.statusLabel,
             self.stopFlag,
-            self.automationCallback))
+            self.clusterComplete))
         
         thread.start()
 
-    def automationCallback(self):
+    def clusterComplete(self):
         self.runningFlag = False
         self.stopFlag.value = False
         self.enableUserActions()
