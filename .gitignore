@@ -1,0 +1,11 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# PyInstaller build/dist directories
+build/
+dist/
+
+# Hidden Excel file
+~$*
+
+venv/
