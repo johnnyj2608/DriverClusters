@@ -35,51 +35,29 @@ class ClusterGUI:
         self.titleLabel = ctk.CTkLabel(master=self.frame, text="Driver Clusters", font=(None, 25, "bold"))
         self.titleLabel.grid(row=0, column=0, pady=12, padx=10, sticky="ew")
 
-        self.folderLabel = ctk.CTkLabel(master=self.frame, text="No Excel file selected")
-        self.folderLabel.grid(row=1, column=0, pady=0, padx=10)
-
-        self.browseButton = ctk.CTkButton(master=self.frame, text="Select Excel file", command=self.browseFolder)
-        self.browseButton.grid(row=2, column=0, pady=(0, 6), padx=10)
-
-        # 3. Driver / Cluster size entry (default to 7. Radio button to select)
-
-        self.initDateFrame()
-
-        # 5. Insurance selection (default None, populated with sheet names)
-
-        self.calculateButton = ctk.CTkButton(master=self.frame, text="Calculate", command=self.calculate, state="disabled")
-        self.calculateButton.grid(row=6, column=0, pady=(6, 6), padx=10)
-
-        # 7. Click to download cluster map / excel of pickup times and group
+        self.initBrowseFrame(row=1)
+        self.initDateFrame(row=2)
+        self.initInsuranceFrame(row=3)
+        # self.initClusterFrame(row=4)
+        self.initButtonFrame(row=5)
 
         self.statusLabel = ctk.CTkLabel(master=self.frame, text="")
-        self.statusLabel.grid(row=8, column=0, pady=0, padx=10)     # Completion %
+        self.statusLabel.grid(row=6, column=0, pady=0, padx=10)     # Completion %
 
-    def browseFolder(self):
-        self.filePath = filedialog.askopenfilename(title="Select a File", filetypes=[("Excel files", "*.xlsx")])
-        if self.filePath and validateExcelFile(self.filePath):
-            self.enableUserActions()
-            fileName = os.path.basename(self.filePath)
-            self.folderLabel.configure(text=fileName, text_color="gray84")
+    def initBrowseFrame(self, row):
+        self.browseFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.browseFrame.grid(row=row, column=0, pady=6, padx=10)
+        self.browseFrame.grid_columnconfigure(0, weight=1)
 
-            today = datetime.now()
-            
-            self.monthEntry.delete(0, "end")
-            self.monthEntry.insert(0, today.month)
+        self.folderLabel = ctk.CTkLabel(master=self.browseFrame, text="No Excel file selected")
+        self.folderLabel.grid(row=0, column=0, pady=0, padx=10)
 
-            self.dayEntry.delete(0, "end")
-            self.dayEntry.insert(0, today.day)
+        self.browseButton = ctk.CTkButton(master=self.browseFrame, text="Select Excel file", command=self.browseFolder)
+        self.browseButton.grid(row=1, column=0, pady=(0, 6), padx=10)
 
-            self.yearEntry.delete(0, "end")
-            self.yearEntry.insert(0, today.year)
-        else:
-            self.folderLabel.configure(text="No members in template", text_color="red")
-            self.disableUserActions()
-            self.browseButton.configure(state="normal")
-
-    def initDateFrame(self):
+    def initDateFrame(self, row):
         self.dateFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
-        self.dateFrame.grid(row=4, column=0, columnspan=3, pady=6, padx=10)
+        self.dateFrame.grid(row=row, column=0, columnspan=3, pady=6, padx=10)
         self.dateFrame.grid_columnconfigure((0, 4), weight=1)
 
         self.dateLabel = ctk.CTkLabel(master=self.dateFrame, text="Date")
@@ -106,6 +84,60 @@ class ClusterGUI:
                                                 height=32, 
                                                 state="disabled")
         self.datePickerButton.grid(row=1, column=4, pady=0, padx=(5, 10), sticky="w")
+
+    def initInsuranceFrame(self, row):
+        self.insuranceFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.insuranceFrame.grid(row=row, column=0, pady=6, padx=10)
+        self.insuranceFrame.grid_columnconfigure(0, weight=1)
+        
+        self.insuranceLabel = ctk.CTkLabel(master=self.insuranceFrame, text="Insurance")
+        self.insuranceLabel.grid(row=0, column=0, pady=0, padx=10, sticky="ew")
+
+        self.insuranceCombo = ctk.CTkComboBox(master=self.insuranceFrame, values=list([]), width=110, state="disabled")
+        self.insuranceCombo.grid(row=1, column=0, pady=0, padx=10, sticky="ew")
+
+    def initClusterFrame(self, row):
+        self.clusterFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.clusterFrame.grid(row=row, column=0, pady=6, padx=10)
+        self.clusterFrame.grid_columnconfigure(0, weight=1)
+
+        # Driver / Cluster size entry (default to 7. Radio button to select)
+
+    def initButtonFrame(self, row):
+        self.buttonFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.buttonFrame.grid(row=row, column=0, pady=6, padx=10)
+        self.buttonFrame.grid_columnconfigure(0, weight=1)
+
+        self.calculateButton = ctk.CTkButton(master=self.buttonFrame, text="Calculate", command=self.calculate, state="disabled")
+        self.calculateButton.grid(row=0, column=0, pady=(6, 6), padx=10)
+
+        # Second button: Click to download cluster map / excel of pickup times and group
+
+    def browseFolder(self):
+        self.filePath = filedialog.askopenfilename(title="Select a File", filetypes=[("Excel files", "*.xlsx")])
+        insurances = validateExcelFile(self.filePath)
+        if self.filePath and insurances:
+            self.enableUserActions()
+            fileName = os.path.basename(self.filePath)
+            self.folderLabel.configure(text=fileName, text_color="gray84")
+
+            today = datetime.now()
+            
+            self.monthEntry.delete(0, "end")
+            self.monthEntry.insert(0, today.month)
+
+            self.dayEntry.delete(0, "end")
+            self.dayEntry.insert(0, today.day)
+
+            self.yearEntry.delete(0, "end")
+            self.yearEntry.insert(0, today.year)
+
+            self.insuranceCombo.configure(values=insurances)
+            self.insuranceCombo.set(insurances[0])
+        else:
+            self.folderLabel.configure(text="No members in template", text_color="red")
+            self.disableUserActions()
+            self.browseButton.configure(state="normal")
 
     def toggleCalendar(self):
         calendarWindow = CTkToplevel()
@@ -175,6 +207,7 @@ class ClusterGUI:
         self.yearEntry.configure(state="disabled")
         self.datePickerButton.configure(state="disabled")
 
+        self.insuranceCombo.configure(state="disabled")
         self.calculateButton.configure(state="disabled")
 
     def enableUserActions(self):
@@ -185,6 +218,7 @@ class ClusterGUI:
         self.yearEntry.configure(state="normal")
         self.datePickerButton.configure(state="normal")
 
+        self.insuranceCombo.configure(state="normal")
         self.calculateButton.configure(state="normal")
 
     def calculate(self):
@@ -212,7 +246,7 @@ class ClusterGUI:
         thread = Thread(target = cluster, args=(
             self.folderLabel.cget("text"),
             datetime(int(year), int(month), int(day)),
-            None,  # insurance
+            self.insuranceCombo.get(),
             self.statusLabel,
             self.stopFlag,
             self.clusterComplete))

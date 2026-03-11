@@ -21,19 +21,21 @@ def validateExcelFile(filePath):
 
     try:
         wb = xw.Book(filePath, ignore_read_only_recommended=True)
+        insurances = []
 
         for sheet in wb.sheets:
             for cell, expected in templateHeaders.items():
                 if sheet.range(cell).value != expected:
                     print("Invalid template")
-                    return False
+                    return []
+            insurances.append(sheet.name.capitalize())
                 
     except FileNotFoundError:
         print(f"File not found.")
     finally:
         app.quit()
 
-    return True
+    return insurances
 
 def getMembersFromExcel(filePath, date, insurance, stopFlag):
         app = xw.App(visible=False)
