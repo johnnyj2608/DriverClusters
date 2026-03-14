@@ -2,6 +2,8 @@ import psutil
 
 import pandas as pd
 import xlwings as xw
+from geopy.extra.rate_limiter import RateLimiter
+from geopy.geocoders import Nominatim
 
 templateHeaders = {
     "A1": "ID",
@@ -53,7 +55,9 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
                     df = pd.DataFrame(dataRange[1:], columns=dataRange[0])
                     df['DoB'] = pd.to_datetime(df['DoB'], errors='coerce')
 
-                    for _, row in df.iterrows():
+                    sheet.api.Unprotect("")
+
+                    for idx, row in df.iterrows():
                         if stopFlag.value: return []
                         member = {
                             'id': str(int(row['ID'])),
@@ -67,10 +71,16 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
                             'longitude': row['Longitude'],
                         }
                         if member['latitude'] == None or member['longitude'] == None:
-                            writeCoordinate(member['address'], member['city'], member['zip'])
+                            lat, lon = writeCoordinate(member['address'], member['city'], member['zip'])
+                            member['latitude'], member['longitude'] = lat, lon
+                            sheet.range(f"H{idx+2}").value = lat
+                            sheet.range(f"I{idx+2}").value = lon
 
                         if str(weekday) in member['schedule']:
                             members.append(member)
+            
+                    sheet.api.Protect("")
+            wb.save() 
             
         except FileNotFoundError:
             print(f"File not found.")
@@ -79,8 +89,20 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
 
         return members
 
+geolocator = Nominatim(user_agent="driverclusters_app")
+geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
+
 def writeCoordinate(address, city, zip_code):
-    pass
+    try:
+        full_address = f"{address}, {city}, {zip_code}"
+        location = geocode(full_address)
+
+        if location:
+            return location.latitude, location.longitude
+        else:
+            return None, None
+    except:
+        return None, None
 
 def ifExcelFileOpen(excelFile):
     for proc in psutil.process_iter():
