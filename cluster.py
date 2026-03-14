@@ -1,5 +1,6 @@
 from excel import getMembersFromExcel
 from cvrp import computeRoutes
+from plot import plotCoordinatesOnMap
 
 def cluster(filePath, date, insurance, stopFlag, callback):
     try:
@@ -19,6 +20,8 @@ def cluster(filePath, date, insurance, stopFlag, callback):
                 
             routeStr = " → ".join(routeMembers)
             print(f"Vehicle {vehicleId+1} route: {routeStr}")
+
+        plotCoordinatesOnMap(members)
 
         callback(error=None)
 

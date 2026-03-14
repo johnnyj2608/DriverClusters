@@ -61,8 +61,6 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
                         print("Missing mandatory data somewhere. Stopping early.")
                         return []
 
-                    sheet.api.Unprotect("")
-
                     for idx, row in df.iterrows():
                         if stopFlag.value: return []
                         member = {
@@ -85,7 +83,6 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
                         if str(weekday) in member['schedule']:
                             members.append(member)
             
-                    sheet.api.Protect("")
             wb.save() 
             
         except FileNotFoundError:
