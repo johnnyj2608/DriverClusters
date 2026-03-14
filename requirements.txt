@@ -1,4 +1,6 @@
 customtkinter==5.2.2
+geopy==2.4.1
+ortools==9.15.6755
 pandas==3.0.1
 Pillow==12.1.1
 psutil==7.1.3

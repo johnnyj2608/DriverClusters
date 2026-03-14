@@ -54,6 +54,7 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
                         return []
                     df = pd.DataFrame(dataRange[1:], columns=dataRange[0])
                     df['DoB'] = pd.to_datetime(df['DoB'], errors='coerce')
+                    df = df.replace({float('nan'): None})
 
                     mandatory_fields = ['ID', 'Name', 'DoB', 'Schedule', 'Address', 'City', 'Zip Code']
                     if df[mandatory_fields].isna().any().any():
