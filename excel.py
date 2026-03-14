@@ -55,6 +55,11 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
                     df = pd.DataFrame(dataRange[1:], columns=dataRange[0])
                     df['DoB'] = pd.to_datetime(df['DoB'], errors='coerce')
 
+                    mandatory_fields = ['ID', 'Name', 'DoB', 'Schedule', 'Address', 'City', 'Zip Code']
+                    if df[mandatory_fields].isna().any().any():
+                        print("Missing mandatory data somewhere. Stopping early.")
+                        return []
+
                     sheet.api.Unprotect("")
 
                     for idx, row in df.iterrows():

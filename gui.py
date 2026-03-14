@@ -241,17 +241,21 @@ class ClusterGUI:
             self.folderLabel.cget("text"),
             datetime(int(year), int(month), int(day)),
             self.insuranceCombo.get(),
-            self.statusLabel,
             self.stopFlag,
             self.clusterComplete))
         
         thread.start()
 
-    def clusterComplete(self):
+    def clusterComplete(self, error=None):
         self.runningFlag = False
         self.stopFlag.value = False
         self.enableUserActions()
         self.calculateButton.configure(text="Automate", fg_color='#1f538d', hover_color='#14375e')
+
+        if error:
+            self.statusLabel.configure(text=f"Error: {error}", text_color="red")
+            self.statusLabel.update()
+            return
 
         elapsedTime = time.time() - self.startTime
         elapsedTime = timedelta(seconds=int(elapsedTime))
