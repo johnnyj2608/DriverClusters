@@ -1,9 +1,15 @@
 import folium
 from collections import defaultdict
 
-def plotCoordinatesOnMap(members, filename='map.html'):
-    center = [40.650002, -73.949997]    # Depot
+def plotCoordinatesOnMap(depot, members):
+    center = (40.650002, -73.949997)
     m = folium.Map(location=center, zoom_start=12, tiles='Cartodb Positron')
+
+    folium.Marker(
+        location=depot,
+        popup=folium.Popup("<strong>Depot</strong>", max_width=300),
+        icon=folium.Icon(color="red", icon="star")
+    ).add_to(m)
 
     grouped = defaultdict(list)
 
@@ -16,10 +22,9 @@ def plotCoordinatesOnMap(members, filename='map.html'):
         popup_html = "<br>".join(names)
 
         folium.Marker(
-            location=[lat, lon],
+            location=(lat, lon),
             popup=folium.Popup(popup_html, max_width=300),
-            icon=folium.Icon(color="blue", icon="info-sign")
+            icon=folium.Icon(color="blue", icon="home")
         ).add_to(m)
 
-    m.save(filename)
-    print(f"Map saved as '{filename}'.")
+    return m

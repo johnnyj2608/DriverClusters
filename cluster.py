@@ -1,12 +1,10 @@
-from datetime import datetime
-
 from excel import getMembersFromExcel
 from cvrp import computeRoutes
 from plot import plotCoordinatesOnMap
 
 def cluster(filePath, date, insurance, stopFlag, callback):
     try:
-        members = getMembersFromExcel(filePath, date, insurance, stopFlag)
+        depot, members = getMembersFromExcel(filePath, date, insurance, stopFlag)
         if not members:
             raise ValueError("Missing data")
         
@@ -23,14 +21,14 @@ def cluster(filePath, date, insurance, stopFlag, callback):
             routeStr = " → ".join(routeMembers)
             print(f"Vehicle {vehicleId+1} route: {routeStr}")
 
+        m = plotCoordinatesOnMap(depot, members)
         month = str(date.month)
         day = str(date.day)
         year = str(date.year % 100)
         dateStr = f"{month}.{day}.{year}"
         insuranceStr = insurance.replace(" ", "_")
         filename = f"{insuranceStr}-{dateStr}.html"
-
-        plotCoordinatesOnMap(members, filename=filename)
+        m.save(filename)
 
         callback(error=None)
 

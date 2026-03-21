@@ -16,7 +16,6 @@ templateHeaders = {
     "H1": "Latitude",
     "I1": "Longitude"
 }
-# Lock Excel headers
 
 def validateExcelFile(filePath):
     app = xw.App(visible=False)
@@ -25,19 +24,51 @@ def validateExcelFile(filePath):
         wb = xw.Book(filePath, ignore_read_only_recommended=True)
         insurances = []
 
+        if not handleSetupSheet(wb):
+            raise ValueError("Missing or invalid Setup sheet")
+
         for sheet in wb.sheets:
+            if sheet.name.strip().lower() == "setup":
+                continue
+
             for cell, expected in templateHeaders.items():
                 if sheet.range(cell).value != expected:
-                    print("Invalid template")
-                    return []
+                    raise ValueError(f"Invalid template in sheet '{sheet.name}'")
             insurances.append(sheet.name.capitalize())
                 
-    except FileNotFoundError:
-        print(f"File not found.")
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
     finally:
         app.quit()
 
     return insurances
+
+def handleSetupSheet(wb):
+    try:
+        setup = wb.sheets['Setup']
+    except KeyError:
+        print("Missing 'Setup' sheet in Excel file.")
+        return False
+    
+    lat = setup.range("A5").value
+    lon = setup.range("B5").value
+
+    if not lat or not lon:
+        address = setup.range("B2").value
+        city = setup.range("B3").value
+        zip = str(int(setup.range("B4").value))
+
+        if not address or not city or not zip:
+            return False
+
+        latitude, longitude = writeCoordinate(address, city, zip)
+        setup.range("A5").value = latitude
+        setup.range("B5").value = longitude
+        print(f"Setup coordinates written: {latitude}, {longitude}")
+
+    wb.save()
+    return True
 
 def getMembersFromExcel(filePath, date, insurance, stopFlag):
         app = xw.App(visible=False)
@@ -47,41 +78,44 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
             members = []
             weekday = date.weekday()+1 
 
-            for sheet in wb.sheets:
-                if insurance == None or insurance.lower() in sheet.name.lower():
-                    dataRange = sheet.range('A1:I1').expand('down').value
-                    if not any(isinstance(i, list) for i in dataRange):
-                        return []
-                    df = pd.DataFrame(dataRange[1:], columns=dataRange[0])
-                    df['DoB'] = pd.to_datetime(df['DoB'], errors='coerce')
-                    df = df.replace({float('nan'): None})
+            setup = wb.sheets['Setup']
+            lat = setup.range("A5").value
+            lon = setup.range("B5").value
+            sheet = wb.sheets[insurance]
 
-                    mandatory_fields = ['ID', 'Name', 'DoB', 'Schedule', 'Address', 'City', 'Zip Code']
-                    if df[mandatory_fields].isna().any().any():
-                        print("Missing mandatory data somewhere. Stopping early.")
-                        return []
+            dataRange = sheet.range('A1:I1').expand('down').value
+            if not any(isinstance(i, list) for i in dataRange):
+                return []
+            df = pd.DataFrame(dataRange[1:], columns=dataRange[0])
+            df['DoB'] = pd.to_datetime(df['DoB'], errors='coerce')
+            df = df.replace({float('nan'): None})
 
-                    for idx, row in df.iterrows():
-                        if stopFlag.value: return []
-                        member = {
-                            'id': str(int(row['ID'])),
-                            'name': row['Name'],
-                            'birthDate': row['DoB'],
-                            'schedule': str(row['Schedule']),
-                            'address': row['Address'],
-                            'city': row['City'],
-                            'zip': str(int(row['Zip Code'])),
-                            'latitude': row['Latitude'],
-                            'longitude': row['Longitude'],
-                        }
-                        if member['latitude'] == None or member['longitude'] == None:
-                            lat, lon = writeCoordinate(member['address'], member['city'], member['zip'])
-                            member['latitude'], member['longitude'] = lat, lon
-                            sheet.range(f"H{idx+2}").value = lat
-                            sheet.range(f"I{idx+2}").value = lon
+            mandatory_fields = ['ID', 'Name', 'DoB', 'Schedule', 'Address', 'City', 'Zip Code']
+            if df[mandatory_fields].isna().any().any():
+                print("Missing mandatory data somewhere. Stopping early.")
+                return []
 
-                        if str(weekday) in member['schedule']:
-                            members.append(member)
+            for idx, row in df.iterrows():
+                if stopFlag.value: return []
+                member = {
+                    'id': str(int(row['ID'])),
+                    'name': row['Name'],
+                    'birthDate': row['DoB'],
+                    'schedule': str(row['Schedule']),
+                    'address': row['Address'],
+                    'city': row['City'],
+                    'zip': str(int(row['Zip Code'])),
+                    'latitude': row['Latitude'],
+                    'longitude': row['Longitude'],
+                }
+                if member['latitude'] == None or member['longitude'] == None:
+                    lat, lon = writeCoordinate(member['address'], member['city'], member['zip'])
+                    member['latitude'], member['longitude'] = lat, lon
+                    sheet.range(f"H{idx+2}").value = lat
+                    sheet.range(f"I{idx+2}").value = lon
+
+                if str(weekday) in member['schedule']:
+                    members.append(member)
             
             wb.save() 
             
@@ -90,7 +124,7 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
         finally:
             app.quit()
 
-        return members
+        return (lat, lon), members
 
 geolocator = Nominatim(user_agent="driverclusters_app")
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
