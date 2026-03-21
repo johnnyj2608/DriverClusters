@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from excel import getMembersFromExcel
 from cvrp import computeRoutes
 from plot import plotCoordinatesOnMap
@@ -21,7 +23,14 @@ def cluster(filePath, date, insurance, stopFlag, callback):
             routeStr = " → ".join(routeMembers)
             print(f"Vehicle {vehicleId+1} route: {routeStr}")
 
-        plotCoordinatesOnMap(members)
+        month = str(date.month)
+        day = str(date.day)
+        year = str(date.year % 100)
+        dateStr = f"{month}.{day}.{year}"
+        insuranceStr = insurance.replace(" ", "_")
+        filename = f"{insuranceStr}-{dateStr}.html"
+
+        plotCoordinatesOnMap(members, filename=filename)
 
         callback(error=None)
 
