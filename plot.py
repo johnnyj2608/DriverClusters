@@ -1,8 +1,8 @@
 import folium
 from collections import defaultdict
 
-def plotCoordinatesOnMap(depot, members):
-    center = (40.650002, -73.949997)
+def plotCoordinatesOnMap(depot, members, routes=None):
+    center = (40.650002, -73.949997)    # NYC
     m = folium.Map(location=center, zoom_start=12, tiles='Cartodb Positron')
 
     folium.Marker(
@@ -12,7 +12,6 @@ def plotCoordinatesOnMap(depot, members):
     ).add_to(m)
 
     grouped = defaultdict(list)
-
     for member in members:
         key = (member['latitude'], member['longitude'])
         grouped[key].append(member)

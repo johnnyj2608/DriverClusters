@@ -8,20 +8,9 @@ def cluster(filePath, date, insurance, stopFlag, callback):
         if not members:
             raise ValueError("Missing data")
         
-        routes = computeRoutes(members, vehicleSize=4)
+        routes = computeRoutes(depot, members, vehicleSize=4)
+        m = plotCoordinatesOnMap(depot, members, routes=routes)
         
-        print("Vehicle Routes")
-        for vehicleId, route in enumerate(routes):
-            routeMembers = []
-            
-            for idx in route:
-                if idx != 0:
-                    routeMembers.append(members[idx-1]['name'])
-                
-            routeStr = " → ".join(routeMembers)
-            print(f"Vehicle {vehicleId+1} route: {routeStr}")
-
-        m = plotCoordinatesOnMap(depot, members)
         month = str(date.month)
         day = str(date.day)
         year = str(date.year % 100)

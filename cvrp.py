@@ -32,11 +32,11 @@ def createDistanceMatrix(locations):
 # -----------------------------
 # Compute vehicle routes
 # -----------------------------
-def computeRoutes(members, vehicleSize=7, depotIndex=0):
+def computeRoutes(depot, members, vehicleSize=7):
     if not members:
         return []
 
-    locations = [(0,0)] + [(m['latitude'], m['longitude']) for m in members]
+    locations = [depot] + [(m['latitude'], m['longitude']) for m in members]
     demands = [0] + [m.get('demand', 1) for m in members]
     distanceMatrix = createDistanceMatrix(locations)
 
@@ -44,7 +44,7 @@ def computeRoutes(members, vehicleSize=7, depotIndex=0):
     totalDemand = sum(demands)
     numVehicles = max(1, math.ceil(totalDemand / vehicleSize))
 
-    manager = pywrapcp.RoutingIndexManager(len(distanceMatrix), numVehicles, depotIndex)
+    manager = pywrapcp.RoutingIndexManager(len(distanceMatrix), numVehicles, 0)
     routing = pywrapcp.RoutingModel(manager)
 
     # Distance callback
