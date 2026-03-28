@@ -67,7 +67,7 @@ def handleSetupSheet(wb):
         setup.range("B5").value = longitude
         print(f"Setup coordinates written: {latitude}, {longitude}")
 
-    wb.save()
+        wb.save()
     return True
 
 def getSettingsFromExcel(wb):
@@ -102,6 +102,7 @@ def getSettingsFromExcel(wb):
 
 def getMembersFromExcel(filePath, date, insurance, stopFlag):
         app = xw.App(visible=False)
+        modified = False
 
         try:
             wb = xw.Book(filePath, ignore_read_only_recommended=True)
@@ -118,8 +119,8 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
             df['DoB'] = pd.to_datetime(df['DoB'], errors='coerce')
             df = df.replace({float('nan'): None})
 
-            mandatory_fields = ['ID', 'Name', 'DoB', 'Schedule', 'Address', 'City', 'Zip Code']
-            if df[mandatory_fields].isna().any().any():
+            mandatoryFields = ['ID', 'Name', 'DoB', 'Schedule', 'Address', 'City', 'Zip Code']
+            if df[mandatoryFields].isna().any().any():
                 print("Missing mandatory data somewhere. Stopping early.")
                 return []
 
@@ -141,11 +142,13 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
                     member['latitude'], member['longitude'] = lat, lon
                     sheet.range(f"H{idx+2}").value = lat
                     sheet.range(f"I{idx+2}").value = lon
+                    modified = True
 
                 if str(weekday) in member['schedule']:
                     members.append(member)
             
-            wb.save() 
+            if modified:
+                wb.save() 
             
         except FileNotFoundError:
             print(f"File not found.")
@@ -157,10 +160,10 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
 geolocator = Nominatim(user_agent="driverclusters_app")
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
 
-def writeCoordinate(address, city, zip_code):
+def writeCoordinate(address, city, zip):
     try:
-        full_address = f"{address}, {city}, {zip_code}"
-        location = geocode(full_address)
+        fullAddress = f"{address}, {city}, {zip}"
+        location = geocode(fullAddress)
 
         if location:
             return location.latitude, location.longitude
