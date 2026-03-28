@@ -1,20 +1,55 @@
 import io
+import traceback
 from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import computeRoutes
 from plot import plotCoordinatesOnMap
 
-def calculateDriveTime(route, times):
-    cumulativeTime = [0]
-    totalTime = 0
+def processRouteData(members, routes, vehicles, timeMatrix):
+    trips = []
 
-    for stopNum in range(1, len(route)):
-        prevIdx = route[stopNum - 1]
-        currIdx = route[stopNum]
-        seconds = times[prevIdx][currIdx] if times else 0
-        totalTime += seconds
-        cumulativeTime.append(totalTime)
+    for trip, route in enumerate(routes):
+        tripData = {
+            "driver": vehicles[trip]["driver"],
+            "carId": vehicles[trip]["carId"],
+            "capacity": vehicles[trip]["capacity"],
+            "members": []
+        }
 
-    return cumulativeTime
+        cumulativeTime = [0]
+        totalTime = 0
+
+        # Calculate drive times
+        for i in range(1, len(route)):
+            prevIdx = route[i - 1]
+            currIdx = route[i]
+
+            seconds = timeMatrix[prevIdx][currIdx] if timeMatrix else 0
+            totalTime += seconds
+            cumulativeTime.append(totalTime)
+
+        for stopNum, idx in enumerate(route):
+            if idx == 0:
+                continue  # skip depot
+
+            member = members[idx - 1]
+
+            tripData["members"].append({
+                **member,
+                "stopNum": stopNum,
+                "pickup": convertSeconds(cumulativeTime[stopNum]),
+                "arrival": convertSeconds(cumulativeTime[-1])
+            })
+
+        trips.append(tripData)
+
+    return trips
+
+def convertSeconds(seconds):
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    time = f"{hours:02d}:{minutes:02d}"
+
+    return time
 
 def cluster(filePath, date, insurance, stopFlag, callback):
     try:
@@ -27,20 +62,15 @@ def cluster(filePath, date, insurance, stopFlag, callback):
             capacity = vehicle["capacity"]
             vehicleCapacities.append(capacity)
         
-        routes, timeMatrix = computeRoutes(members, depot, vehicleCapacities)
-
-        times = {}
-        for i, route in enumerate(routes):
-            times[i] = calculateDriveTime(route, timeMatrix)
-
-        m = plotCoordinatesOnMap(members, depot, vehicles, routes, times)
-
-        e = exportMembersToExcel(members, vehicles, routes, times)
+        routes, times = computeRoutes(members, depot, vehicleCapacities)
+        routesData = processRouteData(members, routes, vehicles, times)
+        m = plotCoordinatesOnMap(depot, routesData)
+        e = exportMembersToExcel(routesData)
         print(e)
         
-        map_file = io.BytesIO()
-        m.save(map_file, close_file=False)
-        mapHtml = map_file.getvalue().decode('utf-8')
+        mapFile = io.BytesIO()
+        m.save(mapFile, close_file=False)
+        mapHtml = mapFile.getvalue().decode('utf-8')
 
         callback(mapHtml, error=None)
 
@@ -54,4 +84,5 @@ def cluster(filePath, date, insurance, stopFlag, callback):
 
     except Exception as e:
         print("An error occurred:", str(e))
+        traceback.print_exc()
         callback(mapHtml=None, error=str(e))

@@ -1,25 +1,24 @@
 import folium
-from routing import getRouteMemberData, convertSeconds
 
 maxWaypoints = 10
 
-def generateGoogleMapsHtml(depot, members, route):
+def generateGoogleMapsHtml(depot, trip):
     links = []
-    memberIndexes = []
+    
+    coords = [(depot[0], depot[1])]
+    for member in trip:
+        coords.append((member["latitude"], member["longitude"]))
 
-    for i in route:
-        if i != 0:
-            memberIndexes.append(i)
+    for i in range(0, len(coords), maxWaypoints):
+        batch = coords[i:i + maxWaypoints]
 
-    for i in range(0, len(memberIndexes), maxWaypoints):
-        batch = memberIndexes[i:i + maxWaypoints]
-        addresses = [f"{depot[0]},{depot[1]}"]
-        
-        for idx in batch:
-            member = members[idx - 1]
-            addresses.append(f"{member['latitude']},{member['longitude']}")
-
+        addresses = []
+        for coord in batch:
+            lat = coord[0]
+            lon = coord[1]
+            addresses.append(f"{lat},{lon}")
         url = "https://www.google.com/maps/dir/" + "/".join(addresses)
+
         links.append(url)
 
     linksHtml = ""
@@ -35,7 +34,7 @@ def generateGoogleMapsHtml(depot, members, route):
 
     return linksHtml
 
-def plotCoordinatesOnMap(members, depot, vehicles, routes, times):
+def plotCoordinatesOnMap(depot, routesData):
     center = (40.650002, -73.949997)    # NYC
     m = folium.Map(location=center, zoom_start=12, tiles=None)
     folium.TileLayer('CartoDB Positron', control=False).add_to(m)
@@ -48,32 +47,26 @@ def plotCoordinatesOnMap(members, depot, vehicles, routes, times):
     ).add_to(m)
 
     # Member markers
-    for trip, route in enumerate(routes):
-        routeData = getRouteMemberData(trip, route, members, vehicles, times)
-        memberCount = len(route) - 1    # subtract depot
+    for trip in routesData:
         fg = folium.FeatureGroup(
-            name=f"{vehicles[trip]['driver']} ({memberCount}/{vehicles[trip]['capacity']})"
+            name=f"{trip['driver']} ({len(trip['members'])}/{trip['capacity']})"
         )
-        for item in routeData:
-            member = item['member']
-            stopNum = item['stopNum']
-            totalSeconds = item['pickup']
 
-            time = convertSeconds(totalSeconds)
-
-            links = generateGoogleMapsHtml(depot, members, route)
+        links = generateGoogleMapsHtml(depot, trip["members"])
+        for member in trip["members"]:
             text = (
                 f"<strong>{member['name']}</strong><br>"
-                f"{vehicles[trip]['driver']} | Stop #{stopNum}<br>"
-                f"Time: {time}<br>"
+                f"{trip['driver']} | Stop #{member['stopNum']}<br>"
+                f"Time: {member['pickup']}<br>"
                 f"{links}"
             )
 
             folium.Marker(
-                location=(member['latitude'], member['longitude']),
+                location=(member["latitude"], member["longitude"]),
                 popup=folium.Popup(text, max_width=400),
                 icon=folium.Icon(color="blue", icon="home")
             ).add_to(fg)
+
         fg.add_to(m)
 
     folium.LayerControl(collapsed=False).add_to(m)

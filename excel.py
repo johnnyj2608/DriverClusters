@@ -4,8 +4,6 @@ import xlwings as xw
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 
-from routing import getRouteMemberData, convertSeconds
-
 templateHeaders = {
     "A1": "ID",
     "B1": "Name",
@@ -165,36 +163,32 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
 
         return depot, vehicles, members
         
-def exportMembersToExcel(members, vehicles, routes, times):
+def exportMembersToExcel(routesData):
     data = []
 
-    for trip, route in enumerate(routes):
-        routeData = getRouteMemberData(trip, route, members, vehicles, times)
+    for trip in routesData:
+        driver = trip["driver"]
+        carId = trip["carId"]
 
-        for item in routeData:
-            member = item['member']
-            carId = item["carId"]
-            driver = item['driver']
-            pickup = item['pickup']
-            arrival = item['arrival']
-
+        for member in trip["members"]:
             data.append({
-                "id": member['id'],
-                "name": member['name'],
-                "birthDate": member['birthDate'],
-                "schedule": member['schedule'],
-                "address": member['address'],
-                "city": member['city'],
-                "zip": member['zip'],
+                "id": member.get("id"),
+                "name": member.get("name"),
+                "birthDate": member.get("birthDate"),
+                "schedule": member.get("schedule"),
+                "address": member.get("address"),
+                "city": member.get("city"),
+                "zip": member.get("zip"),
                 "carId": carId,
                 "Driver": driver,
-                "Pickup": convertSeconds(pickup),
-                "Arrival": convertSeconds(arrival),
+                "Pickup": member.get("pickup"),
+                "Arrival": member.get("arrival"),
             })
-    df = pd.DataFrame(data)
-    df['id'] = pd.to_numeric(df['id'], errors='coerce')
-    df = df.sort_values(by="id")
 
+    df = pd.DataFrame(data)
+    df["id"] = pd.to_numeric(df["id"], errors="coerce")
+    df = df.sort_values(by="id")
+    
     return df
 
 geolocator = Nominatim(user_agent="driverclusters_app")
