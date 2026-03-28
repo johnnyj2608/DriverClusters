@@ -1,5 +1,7 @@
 import os
 import time
+import webbrowser
+import tempfile
 from datetime import datetime, timedelta
 from threading import Thread
 
@@ -23,6 +25,7 @@ class ClusterGUI:
         self.stopFlag = ProcessStop()
         self.runningFlag = False
         self.members = []
+        self.map = None
 
         self.root.geometry(self.centerWindow(self.root, 400, 500, self.root._get_window_scaling()))
         self.frame = ctk.CTkFrame(master=self.root)
@@ -104,6 +107,9 @@ class ClusterGUI:
 
         self.calculateButton = ctk.CTkButton(master=self.buttonFrame, text="Calculate", command=self.calculate, state="disabled")
         self.calculateButton.grid(row=0, column=0, pady=(6, 6), padx=10)
+
+        self.mapButton = ctk.CTkButton(master=self.buttonFrame, text="Map", command=self.openMap, state="disabled")
+        self.mapButton.grid(row=1, column=0, pady=(6, 6), padx=10)
 
         # Second button: Click to download cluster map / excel of pickup times and group
 
@@ -246,7 +252,7 @@ class ClusterGUI:
         
         thread.start()
 
-    def clusterComplete(self, error=None):
+    def clusterComplete(self, mapHtml, error=None):
         self.runningFlag = False
         self.stopFlag.value = False
         self.enableUserActions()
@@ -256,6 +262,10 @@ class ClusterGUI:
             self.statusLabel.configure(text=f"Error: {error}", text_color="red")
             self.statusLabel.update()
             return
+
+        self.map = mapHtml
+        if self.map:
+            self.mapButton.configure(state="normal")
 
         elapsedTime = time.time() - self.startTime
         elapsedTime = timedelta(seconds=int(elapsedTime))
@@ -276,6 +286,13 @@ class ClusterGUI:
 
         self.statusLabel.configure(text="Completed in "+formattedTime)
         self.statusLabel.update()
+
+    def openMap(self):
+        if self.map:
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as temp_file:
+                temp_file.write(self.map.encode('utf-8'))
+                temp_file.close() 
+                webbrowser.open(f"file://{temp_file.name}")
 
     def centerWindow(self, Screen: ctk, width: int, height: int, scale_factor: float = 1.0):
         screen_width = Screen.winfo_screenwidth()

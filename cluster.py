@@ -1,3 +1,4 @@
+import io
 from excel import getMembersFromExcel
 from cvrp import computeRoutes
 from plot import plotCoordinatesOnMap
@@ -16,15 +17,18 @@ def cluster(filePath, date, insurance, stopFlag, callback):
         routes, times = computeRoutes(depot, vehicleCapacities, members)
         m = plotCoordinatesOnMap(depot, vehicles, members, routes, times)
         
-        month = str(date.month)
-        day = str(date.day)
-        year = str(date.year % 100)
-        dateStr = f"{month}.{day}.{year}"
-        insuranceStr = insurance.replace(" ", "_")
-        filename = f"{insuranceStr}-{dateStr}.html"
-        m.save(filename)
+        map_file = io.BytesIO()
+        m.save(map_file, close_file=False)
+        map_html = map_file.getvalue().decode('utf-8')
+        callback(map_html, error=None)
 
-        callback(error=None)
+        # month = str(date.month)
+        # day = str(date.day)
+        # year = str(date.year % 100)
+        # dateStr = f"{month}.{day}.{year}"
+        # insuranceStr = insurance.replace(" ", "_")
+        # filename = f"{insuranceStr}-{dateStr}.html"
+        # m.save(filename)
 
     except Exception as e:
         print("An error occurred:", str(e))
