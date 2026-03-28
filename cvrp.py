@@ -21,7 +21,7 @@ def getDistanceAndTimeMatrix(locations):
 # -----------------------------
 # Compute vehicle routes
 # -----------------------------
-def computeRoutes(depot, vehicles, members):
+def computeRoutes(members, depot, vehicles):
     if not members:
         return []
 

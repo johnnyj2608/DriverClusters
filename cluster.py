@@ -1,7 +1,20 @@
 import io
-from excel import getMembersFromExcel
+from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import computeRoutes
 from plot import plotCoordinatesOnMap
+
+def calculateDriveTime(route, times):
+    cumulativeTime = [0]
+    totalTime = 0
+
+    for stopNum in range(1, len(route)):
+        prevIdx = route[stopNum - 1]
+        currIdx = route[stopNum]
+        seconds = times[prevIdx][currIdx] if times else 0
+        totalTime += seconds
+        cumulativeTime.append(totalTime)
+
+    return cumulativeTime
 
 def cluster(filePath, date, insurance, stopFlag, callback):
     try:
@@ -14,13 +27,22 @@ def cluster(filePath, date, insurance, stopFlag, callback):
             capacity = vehicle["capacity"]
             vehicleCapacities.append(capacity)
         
-        routes, times = computeRoutes(depot, vehicleCapacities, members)
-        m = plotCoordinatesOnMap(depot, vehicles, members, routes, times)
+        routes, timeMatrix = computeRoutes(members, depot, vehicleCapacities)
+
+        times = {}
+        for i, route in enumerate(routes):
+            times[i] = calculateDriveTime(route, timeMatrix)
+
+        m = plotCoordinatesOnMap(members, depot, vehicles, routes, times)
+
+        e = exportMembersToExcel(members, vehicles, routes, times)
+        print(e)
         
         map_file = io.BytesIO()
         m.save(map_file, close_file=False)
-        map_html = map_file.getvalue().decode('utf-8')
-        callback(map_html, error=None)
+        mapHtml = map_file.getvalue().decode('utf-8')
+
+        callback(mapHtml, error=None)
 
         # month = str(date.month)
         # day = str(date.day)
@@ -32,4 +54,4 @@ def cluster(filePath, date, insurance, stopFlag, callback):
 
     except Exception as e:
         print("An error occurred:", str(e))
-        callback(error=str(e))
+        callback(mapHtml=None, error=str(e))

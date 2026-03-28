@@ -1,4 +1,5 @@
 import folium
+from routing import getRouteMemberData, convertSeconds
 
 maxWaypoints = 10
 
@@ -34,20 +35,7 @@ def generateGoogleMapsHtml(depot, members, route):
 
     return linksHtml
 
-def calculateDriveTime(route, times):
-    cumulativeTime = [0]
-    totalTime = 0
-
-    for stopNum in range(1, len(route)):
-        prevIdx = route[stopNum - 1]
-        currIdx = route[stopNum]
-        seconds = times[prevIdx][currIdx] if times else 0
-        totalTime += seconds
-        cumulativeTime.append(totalTime)
-
-    return cumulativeTime
-
-def plotCoordinatesOnMap(depot, vehicles, members, routes, times):
+def plotCoordinatesOnMap(members, depot, vehicles, routes, times):
     center = (40.650002, -73.949997)    # NYC
     m = folium.Map(location=center, zoom_start=12, tiles=None)
     folium.TileLayer('CartoDB Positron', control=False).add_to(m)
@@ -60,26 +48,23 @@ def plotCoordinatesOnMap(depot, vehicles, members, routes, times):
     ).add_to(m)
 
     # Member markers
-    for i, route in enumerate(routes):
+    for trip, route in enumerate(routes):
+        routeData = getRouteMemberData(trip, route, members, vehicles, times)
         memberCount = len(route) - 1    # subtract depot
         fg = folium.FeatureGroup(
-            name=f"{vehicles[i]['name']} ({memberCount}/{vehicles[i]['capacity']})"
+            name=f"{vehicles[trip]['driver']} ({memberCount}/{vehicles[trip]['capacity']})"
         )
-        cumulativeTimes = calculateDriveTime(route, times)
-        for stopNum, idx in enumerate(route):
-            if idx == 0:
-                continue
-            member = members[idx - 1]   # route indexes 0 as depot
+        for item in routeData:
+            member = item['member']
+            stopNum = item['stopNum']
+            totalSeconds = item['pickup']
 
-            total_time_sec = cumulativeTimes[stopNum]
-            hours = int(total_time_sec // 3600)
-            minutes = int((total_time_sec % 3600) // 60)
-            time = f"{hours:02d}:{minutes:02d}"
+            time = convertSeconds(totalSeconds)
 
             links = generateGoogleMapsHtml(depot, members, route)
             text = (
                 f"<strong>{member['name']}</strong><br>"
-                f"{vehicles[i]['name']} | Stop #{stopNum}<br>"
+                f"{vehicles[trip]['driver']} | Stop #{stopNum}<br>"
                 f"Time: {time}<br>"
                 f"{links}"
             )

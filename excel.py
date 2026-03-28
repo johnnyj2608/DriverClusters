@@ -1,9 +1,10 @@
 import psutil
-
 import pandas as pd
 import xlwings as xw
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
+
+from routing import getRouteMemberData, convertSeconds
 
 templateHeaders = {
     "A1": "ID",
@@ -80,16 +81,23 @@ def getSettingsFromExcel(wb):
     
     depot = (lat, lon)
 
-    cars = setup.range("A9:B9").expand("down").value
+    cars = setup.range("A9:C9").expand("down").value
     vehicles = []
     for row in cars:
-        if not row or not row[0] or not row[1]:
+        if not all(row[i] for i in range(3)):
             continue
 
         try:
+            carId = row[0]
+            if isinstance(carId, float) and carId.is_integer():
+                carId = str(int(carId))
+            else:
+                carId = str(carId).strip()
+
             vehicle = {
-                "name": str(row[0]).strip(),
-                "capacity": int(row[1])
+                "carId": carId,
+                "driver": str(row[1]).strip(),
+                "capacity": int(row[2])
             }
             vehicles.append(vehicle)
         except:
@@ -156,6 +164,38 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
             app.quit()
 
         return depot, vehicles, members
+        
+def exportMembersToExcel(members, vehicles, routes, times):
+    data = []
+
+    for trip, route in enumerate(routes):
+        routeData = getRouteMemberData(trip, route, members, vehicles, times)
+
+        for item in routeData:
+            member = item['member']
+            carId = item["carId"]
+            driver = item['driver']
+            pickup = item['pickup']
+            arrival = item['arrival']
+
+            data.append({
+                "id": member['id'],
+                "name": member['name'],
+                "birthDate": member['birthDate'],
+                "schedule": member['schedule'],
+                "address": member['address'],
+                "city": member['city'],
+                "zip": member['zip'],
+                "carId": carId,
+                "Driver": driver,
+                "Pickup": convertSeconds(pickup),
+                "Arrival": convertSeconds(arrival),
+            })
+    df = pd.DataFrame(data)
+    df['id'] = pd.to_numeric(df['id'], errors='coerce')
+    df = df.sort_values(by="id")
+
+    return df
 
 geolocator = Nominatim(user_agent="driverclusters_app")
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)

@@ -262,9 +262,9 @@ class ClusterGUI:
             self.statusLabel.configure(text=f"Error: {error}", text_color="red")
             self.statusLabel.update()
             return
-
-        self.map = mapHtml
-        if self.map:
+        
+        if mapHtml:
+            self.map = mapHtml
             self.mapButton.configure(state="normal")
 
         elapsedTime = time.time() - self.startTime
