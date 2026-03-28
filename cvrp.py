@@ -1,33 +1,22 @@
 # Capacitated Vehicle Routing Problem
 
+import requests
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
-import math
 
 # -----------------------------
-# Haversine distance
+# OSRM road-network distance
 # -----------------------------
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371  # Earth radius in km
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda/2)**2
-    return R * 1000 * 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))  # meters
-
-# -----------------------------
-# Create distance matrix
-# -----------------------------
-def createDistanceMatrix(locations):
-    size = len(locations)
-    distanceMatrix = []
-    for i in range(size):
-        row = []
-        for j in range(size):
-            row.append(int(haversine(locations[i][0], locations[i][1],
-                                     locations[j][0], locations[j][1])))
-        distanceMatrix.append(row)
-    return distanceMatrix
+def getDistanceAndTimeMatrix(locations):
+    coordsStr = ";".join([f"{lon},{lat}" for lat, lon in locations])
+    url = f"http://router.project-osrm.org/table/v1/driving/{coordsStr}?annotations=distance,duration"
+    r = requests.get(url)
+    data = r.json()
+    
+    if "distances" not in data or "durations" not in data:
+        raise ValueError("OSRM request failed: " + str(data))
+    
+    return data["distances"], data["durations"]
 
 # -----------------------------
 # Compute vehicle routes
@@ -37,8 +26,8 @@ def computeRoutes(depot, vehicles, members):
         return []
 
     locations = [depot] + [(m['latitude'], m['longitude']) for m in members]
-    demands = [0] + [m.get('demand', 1) for m in members]
-    distanceMatrix = createDistanceMatrix(locations)
+    demands = [0] + [int(m.get('demand', 1)) for m in members]
+    distanceMatrix, timeMatrix = getDistanceAndTimeMatrix(locations)
 
     numVehicles = len(vehicles)
 
@@ -47,8 +36,9 @@ def computeRoutes(depot, vehicles, members):
 
     # Distance callback
     def distanceCallback(fromIndex, toIndex):
-        return distanceMatrix[manager.IndexToNode(fromIndex)][manager.IndexToNode(toIndex)]
-    routing.SetArcCostEvaluatorOfAllVehicles(routing.RegisterTransitCallback(distanceCallback))
+        return int(distanceMatrix[manager.IndexToNode(fromIndex)][manager.IndexToNode(toIndex)])
+    transitCallbackIndex = routing.RegisterTransitCallback(distanceCallback)
+    routing.SetArcCostEvaluatorOfAllVehicles(transitCallbackIndex)
 
     # Capacity callback
     def demandCallback(fromIndex):
@@ -76,4 +66,4 @@ def computeRoutes(depot, vehicles, members):
                 index = solution.Value(routing.NextVar(index))
             if route:
                 routes.append(route)
-    return routes
+    return routes, timeMatrix
