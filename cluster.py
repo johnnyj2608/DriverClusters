@@ -14,7 +14,7 @@ def cluster(filePath, date, insurance, stopFlag, callback):
             vehicleCapacities.append(capacity)
         
         routes = computeRoutes(depot, vehicleCapacities, members)
-        m = plotCoordinatesOnMap(depot, members, routes=routes)
+        m = plotCoordinatesOnMap(depot, vehicles, members, routes)
         
         month = str(date.month)
         day = str(date.day)

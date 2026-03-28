@@ -1,29 +1,33 @@
 import folium
-from collections import defaultdict
 
-def plotCoordinatesOnMap(depot, members, routes=None):
+def plotCoordinatesOnMap(depot, vehicles, members, routes):
     center = (40.650002, -73.949997)    # NYC
-    m = folium.Map(location=center, zoom_start=12, tiles='Cartodb Positron')
+    m = folium.Map(location=center, zoom_start=12, tiles=None)
+    folium.TileLayer('CartoDB Positron', control=False).add_to(m)
 
+    # Depot marker
     folium.Marker(
         location=depot,
         popup=folium.Popup("<strong>Depot</strong>", max_width=300),
         icon=folium.Icon(color="red", icon="star")
     ).add_to(m)
 
-    grouped = defaultdict(list)
-    for member in members:
-        key = (member['latitude'], member['longitude'])
-        grouped[key].append(member)
+    # Member markers
+    for i, route in enumerate(routes):
+        memberCount = len(route) - 1    # subtract depot
+        fg = folium.FeatureGroup(
+            name=f"{vehicles[i]['name']} ({memberCount}/{vehicles[i]['capacity']})"
+        )
+        for idx in route:
+            if idx == 0:
+                continue
+            member = members[idx - 1]   # route indexes 0 as depot
+            folium.Marker(
+                location=(member['latitude'], member['longitude']),
+                popup=folium.Popup(member['name'], max_width=300),
+                icon=folium.Icon(color="blue", icon="home")
+            ).add_to(fg)
+        fg.add_to(m)
 
-    for (lat, lon), group in grouped.items():
-        names = [m['name'] for m in group]
-        popup_html = "<br>".join(names)
-
-        folium.Marker(
-            location=(lat, lon),
-            popup=folium.Popup(popup_html, max_width=300),
-            icon=folium.Icon(color="blue", icon="home")
-        ).add_to(m)
-
+    folium.LayerControl(collapsed=False).add_to(m)
     return m
