@@ -4,11 +4,16 @@ from plot import plotCoordinatesOnMap
 
 def cluster(filePath, date, insurance, stopFlag, callback):
     try:
-        depot, members = getMembersFromExcel(filePath, date, insurance, stopFlag)
+        depot, vehicles, members = getMembersFromExcel(filePath, date, insurance, stopFlag)
         if not members:
             raise ValueError("Missing data")
         
-        routes = computeRoutes(depot, members, vehicleSize=4)
+        vehicleCapacities = []
+        for vehicle in vehicles:
+            capacity = vehicle["capacity"]
+            vehicleCapacities.append(capacity)
+        
+        routes = computeRoutes(depot, vehicleCapacities, members)
         m = plotCoordinatesOnMap(depot, members, routes=routes)
         
         month = str(date.month)

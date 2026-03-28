@@ -70,6 +70,36 @@ def handleSetupSheet(wb):
     wb.save()
     return True
 
+def getSettingsFromExcel(wb):
+    setup = wb.sheets['Setup']
+    lat = setup.range("A5").value
+    lon = setup.range("B5").value
+
+    if lat is None or lon is None:
+        raise ValueError("Depot coordinates missing")
+    
+    depot = (lat, lon)
+
+    cars = setup.range("A9:B9").expand("down").value
+    vehicles = []
+    for row in cars:
+        if not row or not row[0] or not row[1]:
+            continue
+
+        try:
+            vehicle = {
+                "name": str(row[0]).strip(),
+                "capacity": int(row[1])
+            }
+            vehicles.append(vehicle)
+        except:
+            continue
+
+    if not vehicles:
+        raise ValueError("No vehicle data found in Setup sheet")
+
+    return depot, vehicles
+
 def getMembersFromExcel(filePath, date, insurance, stopFlag):
         app = xw.App(visible=False)
 
@@ -78,9 +108,7 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
             members = []
             weekday = date.weekday()+1 
 
-            setup = wb.sheets['Setup']
-            lat = setup.range("A5").value
-            lon = setup.range("B5").value
+            depot, vehicles = getSettingsFromExcel(wb)
             sheet = wb.sheets[insurance]
 
             dataRange = sheet.range('A1:I1').expand('down').value
@@ -124,7 +152,7 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
         finally:
             app.quit()
 
-        return (lat, lon), members
+        return depot, vehicles, members
 
 geolocator = Nominatim(user_agent="driverclusters_app")
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)
