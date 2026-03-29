@@ -1,4 +1,3 @@
-import io
 import traceback
 from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import computeRoutes
@@ -64,25 +63,13 @@ def cluster(filePath, date, insurance, stopFlag, callback):
         
         routes, times = computeRoutes(members, depot, vehicleCapacities)
         routesData = processRouteData(members, routes, vehicles, times)
-        m = plotCoordinatesOnMap(depot, routesData)
-        e = exportMembersToExcel(routesData)
-        print(e)
+        map = plotCoordinatesOnMap(depot, routesData)
+
+        excel = exportMembersToExcel(routesData)
         
-        mapFile = io.BytesIO()
-        m.save(mapFile, close_file=False)
-        mapHtml = mapFile.getvalue().decode('utf-8')
-
-        callback(mapHtml, error=None)
-
-        # month = str(date.month)
-        # day = str(date.day)
-        # year = str(date.year % 100)
-        # dateStr = f"{month}.{day}.{year}"
-        # insuranceStr = insurance.replace(" ", "_")
-        # filename = f"{insuranceStr}-{dateStr}.html"
-        # m.save(filename)
+        callback(map, excel, error=None)
 
     except Exception as e:
         print("An error occurred:", str(e))
         traceback.print_exc()
-        callback(mapHtml=None, error=str(e))
+        callback(mapHtml=None, excelBytes=None, error=str(e))

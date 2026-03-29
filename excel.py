@@ -1,6 +1,8 @@
+import io
 import psutil
 import pandas as pd
 import xlwings as xw
+import openpyxl  # needed for pandas to_excel
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 
@@ -172,24 +174,31 @@ def exportMembersToExcel(routesData):
 
         for member in trip["members"]:
             data.append({
-                "id": member.get("id"),
-                "name": member.get("name"),
-                "birthDate": member.get("birthDate"),
-                "schedule": member.get("schedule"),
-                "address": member.get("address"),
-                "city": member.get("city"),
-                "zip": member.get("zip"),
-                "carId": carId,
+                "ID": member.get("id"),
+                "Name": member.get("name"),
+                "Birth Date": member.get("birthDate"),
+                "Schedule": member.get("schedule"),
+                "Address": member.get("address"),
+                "City": member.get("city"),
+                "Zip": member.get("zip"),
+                "Car": carId,
                 "Driver": driver,
                 "Pickup": member.get("pickup"),
                 "Arrival": member.get("arrival"),
             })
 
     df = pd.DataFrame(data)
-    df["id"] = pd.to_numeric(df["id"], errors="coerce")
-    df = df.sort_values(by="id")
+    df["ID"] = pd.to_numeric(df["ID"], errors="coerce")
+    df = df.sort_values(by="ID")
+    df["Birth Date"] = pd.to_datetime(df["Birth Date"], errors="coerce").dt.date
+    df["Zip"] = df["Zip"].astype(str).str.zfill(5)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
     
-    return df
+    output.seek(0)
+    return output
 
 geolocator = Nominatim(user_agent="driverclusters_app")
 geocode = RateLimiter(geolocator.geocode, min_delay_seconds=1)

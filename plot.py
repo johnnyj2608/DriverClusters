@@ -1,3 +1,4 @@
+import io
 import folium
 
 maxWaypoints = 10
@@ -70,4 +71,9 @@ def plotCoordinatesOnMap(depot, routesData):
         fg.add_to(m)
 
     folium.LayerControl(collapsed=False).add_to(m)
-    return m
+
+    mapFile = io.BytesIO()
+    m.save(mapFile, close_file=False)
+    mapHtml = mapFile.getvalue().decode('utf-8')
+
+    return mapHtml

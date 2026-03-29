@@ -26,6 +26,7 @@ class ClusterGUI:
         self.runningFlag = False
         self.members = []
         self.map = None
+        self.excel = None
 
         self.root.geometry(self.centerWindow(self.root, 400, 500, self.root._get_window_scaling()))
         self.frame = ctk.CTkFrame(master=self.root)
@@ -108,10 +109,11 @@ class ClusterGUI:
         self.calculateButton = ctk.CTkButton(master=self.buttonFrame, text="Calculate", command=self.calculate, state="disabled")
         self.calculateButton.grid(row=0, column=0, pady=(6, 6), padx=10)
 
-        self.mapButton = ctk.CTkButton(master=self.buttonFrame, text="Map", command=self.openMap, state="disabled")
+        self.mapButton = ctk.CTkButton(master=self.buttonFrame, text="Open Map", command=self.openMap, state="disabled")
         self.mapButton.grid(row=1, column=0, pady=(6, 6), padx=10)
 
-        # Second button: Click to download cluster map / excel of pickup times and group
+        self.excelButton = ctk.CTkButton(master=self.buttonFrame, text="Download Excel", command=self.downloadExcel, state="disabled")
+        self.excelButton.grid(row=2, column=0, pady=(6, 6), padx=10)
 
     def browseFolder(self):
         self.filePath = filedialog.askopenfilename(title="Select a File", filetypes=[("Excel files", "*.xlsx")])
@@ -252,7 +254,7 @@ class ClusterGUI:
         
         thread.start()
 
-    def clusterComplete(self, mapHtml, error=None):
+    def clusterComplete(self, mapHtml, excelBytes, error=None):
         self.runningFlag = False
         self.stopFlag.value = False
         self.enableUserActions()
@@ -266,6 +268,10 @@ class ClusterGUI:
         if mapHtml:
             self.map = mapHtml
             self.mapButton.configure(state="normal")
+
+        if excelBytes:
+            self.excel = excelBytes
+            self.excelButton.configure(state="normal")
 
         elapsedTime = time.time() - self.startTime
         elapsedTime = timedelta(seconds=int(elapsedTime))
@@ -293,6 +299,26 @@ class ClusterGUI:
                 temp_file.write(self.map.encode('utf-8'))
                 temp_file.close() 
                 webbrowser.open(f"file://{temp_file.name}")
+
+    def downloadExcel(self):
+        if self.excel:
+
+            insurance = self.insuranceCombo.get()
+            month = self.monthEntry.get()
+            day = self.dayEntry.get()
+            year = self.yearEntry.get()
+            filename = f"{insurance}_{month}-{day}-{year}.xlsx"
+            
+            file_path = filedialog.asksaveasfilename(
+                defaultextension=".xlsx",
+                filetypes=[("Excel files", "*.xlsx")],
+                initialfile=filename,
+                title="Save Excel File"
+            )
+            if file_path:
+                self.excel.seek(0)
+                with open(file_path, "wb") as f:
+                    f.write(self.excel.read())
 
     def centerWindow(self, Screen: ctk, width: int, height: int, scale_factor: float = 1.0):
         screen_width = Screen.winfo_screenwidth()
