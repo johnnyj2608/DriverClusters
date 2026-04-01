@@ -64,6 +64,7 @@ def computeRoutes(members, depot, vehicles):
             while not routing.IsEnd(index):
                 route.append(manager.IndexToNode(index))
                 index = solution.Value(routing.NextVar(index))
+            route.append(manager.IndexToNode(index))
             if route:
                 routes.append(route)
     return routes, timeMatrix

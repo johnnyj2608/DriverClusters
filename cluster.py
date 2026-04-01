@@ -63,9 +63,9 @@ def cluster(filePath, date, insurance, stopFlag, callback):
         
         routes, times = computeRoutes(members, depot, vehicleCapacities)
         routesData = processRouteData(members, routes, vehicles, times)
-        map = plotCoordinatesOnMap(depot, routesData)
+        map = plotCoordinatesOnMap(depot, routesData, stopFlag)
 
-        excel = exportMembersToExcel(routesData)
+        excel = exportMembersToExcel(routesData, stopFlag)
         
         callback(map, excel, error=None)
 

@@ -165,10 +165,11 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
 
         return depot, vehicles, members
         
-def exportMembersToExcel(routesData):
+def exportMembersToExcel(routesData, stopFlag):
     data = []
 
     for trip in routesData:
+        if stopFlag.value: return None
         driver = trip["driver"]
         carId = trip["carId"]
 
