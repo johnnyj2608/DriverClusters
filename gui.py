@@ -49,18 +49,18 @@ class ClusterGUI:
 
     def initBrowseFrame(self, row):
         self.browseFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
-        self.browseFrame.grid(row=row, column=0, pady=6, padx=10)
+        self.browseFrame.grid(row=row, column=0, pady=4, padx=10)
         self.browseFrame.grid_columnconfigure(0, weight=1)
 
         self.folderLabel = ctk.CTkLabel(master=self.browseFrame, text="No Excel file selected")
         self.folderLabel.grid(row=0, column=0, pady=0, padx=10)
 
         self.browseButton = ctk.CTkButton(master=self.browseFrame, text="Select Excel file", command=self.browseFolder)
-        self.browseButton.grid(row=1, column=0, pady=(0, 6), padx=10)
+        self.browseButton.grid(row=1, column=0, pady=0, padx=10)
 
     def initDateFrame(self, row):
         self.dateFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
-        self.dateFrame.grid(row=row, column=0, columnspan=3, pady=6, padx=10)
+        self.dateFrame.grid(row=row, column=0, columnspan=3, pady=4, padx=10)
         self.dateFrame.grid_columnconfigure((0, 4), weight=1)
 
         self.dateLabel = ctk.CTkLabel(master=self.dateFrame, text="Date")
@@ -92,7 +92,7 @@ class ClusterGUI:
 
     def initInsuranceFrame(self, row):
         self.insuranceFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
-        self.insuranceFrame.grid(row=row, column=0, pady=6, padx=10)
+        self.insuranceFrame.grid(row=row, column=0, pady=4, padx=10)
         self.insuranceFrame.grid_columnconfigure(0, weight=1)
         
         self.insuranceLabel = ctk.CTkLabel(master=self.insuranceFrame, text="Insurance")
@@ -103,17 +103,17 @@ class ClusterGUI:
 
     def initButtonFrame(self, row):
         self.buttonFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
-        self.buttonFrame.grid(row=row, column=0, pady=6, padx=10)
+        self.buttonFrame.grid(row=row, column=0, pady=4, padx=10)
         self.buttonFrame.grid_columnconfigure(0, weight=1)
 
         self.calculateButton = ctk.CTkButton(master=self.buttonFrame, text="Calculate", command=self.calculate, state="disabled")
-        self.calculateButton.grid(row=0, column=0, pady=(6, 6), padx=10)
+        self.calculateButton.grid(row=0, column=0, pady=6, padx=10)
 
         self.mapButton = ctk.CTkButton(master=self.buttonFrame, text="Open Map", command=self.openMap, state="disabled")
-        self.mapButton.grid(row=1, column=0, pady=(6, 6), padx=10)
+        self.mapButton.grid(row=1, column=0, pady=6, padx=10)
 
         self.excelButton = ctk.CTkButton(master=self.buttonFrame, text="Download Excel", command=self.downloadExcel, state="disabled")
-        self.excelButton.grid(row=2, column=0, pady=(6, 6), padx=10)
+        self.excelButton.grid(row=2, column=0, pady=6, padx=10)
 
     def browseFolder(self):
         self.filePath = filedialog.askopenfilename(title="Select a File", filetypes=[("Excel files", "*.xlsx")])

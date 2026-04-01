@@ -63,10 +63,10 @@ def handleSetupSheet(wb):
         if not address or not city or not zip:
             return False
 
-        latitude, longitude = writeCoordinate(address, city, zip)
-        setup.range("A5").value = latitude
-        setup.range("B5").value = longitude
-        print(f"Setup coordinates written: {latitude}, {longitude}")
+        lat, lon = writeCoordinate(address, city, zip)
+        setup.range("A5").value = lat
+        setup.range("B5").value = lon
+        print(f"Setup coordinates written: {lat}, {lon}")
 
         wb.save()
     return True
@@ -142,12 +142,12 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
                     'address': row['Address'],
                     'city': row['City'],
                     'zip': str(int(row['Zip Code'])),
-                    'latitude': row['Latitude'],
-                    'longitude': row['Longitude'],
+                    'lat': row['Latitude'],
+                    'lon': row['Longitude'],
                 }
-                if member['latitude'] == None or member['longitude'] == None:
+                if member['lat'] == None or member['lon'] == None:
                     lat, lon = writeCoordinate(member['address'], member['city'], member['zip'])
-                    member['latitude'], member['longitude'] = lat, lon
+                    member['lat'], member['lon'] = lat, lon
                     sheet.range(f"H{idx+2}").value = lat
                     sheet.range(f"I{idx+2}").value = lon
                     modified = True

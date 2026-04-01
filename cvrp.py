@@ -25,7 +25,7 @@ def computeRoutes(members, depot, vehicles):
     if not members:
         return []
 
-    locations = [depot] + [(m['latitude'], m['longitude']) for m in members]
+    locations = [depot] + [(m['lat'], m['lon']) for m in members]
     demands = [0] + [int(m.get('demand', 1)) for m in members]
     distanceMatrix, timeMatrix = getDistanceAndTimeMatrix(locations)
 

@@ -8,7 +8,7 @@ def generateGoogleMapsHtml(depot, trip):
     
     coords = [(depot[0], depot[1])]
     for member in trip:
-        coords.append((member["latitude"], member["longitude"]))
+        coords.append((member["lat"], member["lon"]))
 
     for i in range(0, len(coords), maxWaypoints):
         batch = coords[i:i + maxWaypoints]
@@ -63,7 +63,7 @@ def plotCoordinatesOnMap(depot, routesData, stopFlag):
             )
 
             folium.Marker(
-                location=(member["latitude"], member["longitude"]),
+                location=(member["lat"], member["lon"]),
                 popup=folium.Popup(text, max_width=400),
                 icon=folium.Icon(color="blue", icon="home")
             ).add_to(fg)
