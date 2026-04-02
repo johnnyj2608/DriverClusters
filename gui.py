@@ -28,7 +28,7 @@ class ClusterGUI:
         self.map = None
         self.excel = None
 
-        self.root.geometry(self.centerWindow(self.root, 400, 500, self.root._get_window_scaling()))
+        self.root.geometry(self.centerWindow(self.root, 400, 525, self.root._get_window_scaling()))
         self.frame = ctk.CTkFrame(master=self.root)
         self.frame.pack(pady=20, padx=40, fill="both", expand=True)
         self.frame.grid_columnconfigure(0, weight=1)
@@ -41,11 +41,12 @@ class ClusterGUI:
 
         self.initBrowseFrame(row=1)
         self.initDateFrame(row=2)
-        self.initInsuranceFrame(row=3)
-        self.initButtonFrame(row=4)
+        self.initTimeFrame(row=3)
+        self.initInsuranceFrame(row=4)
+        self.initButtonFrame(row=5)
 
         self.statusLabel = ctk.CTkLabel(master=self.frame, text="")
-        self.statusLabel.grid(row=5, column=0, pady=0, padx=10)     # Completion %
+        self.statusLabel.grid(row=6, column=0, pady=0, padx=10)     # Completion %
 
     def initBrowseFrame(self, row):
         self.browseFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
@@ -90,6 +91,29 @@ class ClusterGUI:
         )
         self.datePickerButton.grid(row=1, column=4, pady=0, padx=(5, 10), sticky="w")
 
+    def initTimeFrame(self, row):
+        self.timeFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.timeFrame.grid(row=row, column=0, pady=4, padx=10)
+        self.timeFrame.grid_columnconfigure((0, 2), weight=1)
+
+        self.timeLabel = ctk.CTkLabel(master=self.timeFrame, text="Start Time")
+        self.timeLabel.grid(row=0, column=0, columnspan=3, pady=0, padx=10, sticky="ew")
+
+        self.hourEntry = ctk.CTkEntry(master=self.timeFrame, width=40)
+        self.hourEntry.grid(row=1, column=0, pady=0, padx=1, sticky="e")
+        self.hourEntry.configure(validate="key", validatecommand=(self.frame.register(self.validateHour), "%P"), state="disabled")
+
+        self.minuteEntry = ctk.CTkEntry(master=self.timeFrame, width=40)
+        self.minuteEntry.grid(row=1, column=1, pady=0, padx=1, sticky="w")
+        self.minuteEntry.configure(validate="key", validatecommand=(self.frame.register(self.validateMinute), "%P"), state="disabled")
+
+        self.ampmSwitch = ctk.CTkSegmentedButton(
+            master=self.timeFrame,
+            values=["AM", "PM"],
+            state="disabled"
+        )
+        self.ampmSwitch.grid(row=1, column=2, pady=0, padx=1)
+
     def initInsuranceFrame(self, row):
         self.insuranceFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
         self.insuranceFrame.grid(row=row, column=0, pady=4, padx=10)
@@ -133,6 +157,13 @@ class ClusterGUI:
 
             self.yearEntry.delete(0, "end")
             self.yearEntry.insert(0, today.year)
+
+            self.hourEntry.delete(0, "end")
+            self.hourEntry.insert(0, "8")
+
+            self.minuteEntry.delete(0, "end")
+            self.minuteEntry.insert(0, "00")
+            self.ampmSwitch.set("AM")
 
             self.insuranceCombo.configure(values=insurances)
             self.insuranceCombo.set(insurances[0])
@@ -193,13 +224,39 @@ class ClusterGUI:
         self.cal.master.destroy()
 
     def validateMonth(self, val):
-        return val == "" or (val.isdigit() and len(val) <= 2)
+        if val == "":
+            return True
+        if val.isdigit() and 1 <= int(val) <= 12:
+            return True
+        return False
 
     def validateDay(self, val):
-        return val == "" or (val.isdigit() and len(val) <= 2)
+        if val == "":
+            return True
+        if val.isdigit() and 1 <= int(val) <= 31:
+            return True
+        return False
 
     def validateYear(self, val):
-        return val == "" or (val.isdigit() and len(val) <= 4)
+        if val == "":
+            return True
+        if val.isdigit() and 1900 <= int(val) <= 9999:
+            return True
+        return False
+    
+    def validateHour(self, val):
+        if val == "":
+            return True
+        if val.isdigit() and 1 <= int(val) <= 12:
+            return True
+        return False
+    
+    def validateMinute(self, val):
+        if val == "":
+            return True
+        if val.isdigit() and 0 <= int(val) <= 59:
+            return True
+        return False
 
     def disableUserActions(self):
         self.browseButton.configure(state="disabled")
@@ -208,6 +265,10 @@ class ClusterGUI:
         self.dayEntry.configure(state="disabled")
         self.yearEntry.configure(state="disabled")
         self.datePickerButton.configure(state="disabled")
+
+        self.hourEntry.configure(state="disabled")
+        self.minuteEntry.configure(state="disabled")
+        self.ampmSwitch.configure(state="disabled")
 
         self.insuranceCombo.configure(state="disabled")
         self.calculateButton.configure(state="disabled")
@@ -219,6 +280,10 @@ class ClusterGUI:
         self.dayEntry.configure(state="normal")
         self.yearEntry.configure(state="normal")
         self.datePickerButton.configure(state="normal")
+
+        self.hourEntry.configure(state="normal")
+        self.minuteEntry.configure(state="normal")
+        self.ampmSwitch.configure(state="normal")
 
         self.insuranceCombo.configure(state="normal")
         self.calculateButton.configure(state="normal")
@@ -241,14 +306,24 @@ class ClusterGUI:
 
         self.startTime = time.time()
 
-        month = self.monthEntry.get()
-        day = self.dayEntry.get()
-        year = self.yearEntry.get()
+        month = int(self.monthEntry.get())
+        day = int(self.dayEntry.get())
+        year = int(self.yearEntry.get())
+        
+        hour = int(self.hourEntry.get())
+        minute = int(self.minuteEntry.get())
+        ampm = self.ampmSwitch.get()
+
+        if ampm == "PM" and hour != 12:
+            hour += 12
+        elif ampm == "AM" and hour == 12:
+            hour = 0
 
         thread = Thread(target = cluster, args=(
             self.folderLabel.cget("text"),
-            datetime(int(year), int(month), int(day)),
+            datetime(year, month, day, hour, minute),
             self.insuranceCombo.get(),
+            self.statusLabel,
             self.stopFlag,
             self.clusterComplete))
         
@@ -258,7 +333,7 @@ class ClusterGUI:
         self.runningFlag = False
         self.stopFlag.value = False
         self.enableUserActions()
-        self.calculateButton.configure(text="Automate", fg_color='#1f538d', hover_color='#14375e')
+        self.calculateButton.configure(text="Calculate", fg_color='#1f538d', hover_color='#14375e')
 
         if error:
             self.statusLabel.configure(text=f"Error: {error}", text_color="red")

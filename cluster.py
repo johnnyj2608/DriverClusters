@@ -1,4 +1,5 @@
 import traceback
+from datetime import timedelta
 from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import computeRoutes
 from plot import plotCoordinatesOnMap
@@ -110,7 +111,7 @@ def routeByQuadrant(members, depot, vehicles, stopFlag):
 
     return quadrantRoutes
 
-def processQuadrantData(quadrantRoutes, stopFlag):
+def processQuadrantData(quadrantRoutes, datetime, stopFlag):
     trips = []
     arrivalTimes = {}
 
@@ -128,7 +129,7 @@ def processQuadrantData(quadrantRoutes, stopFlag):
             vehicle = vehicles[trip]
             vehicleId = vehicle["carId"]
 
-            startTime = arrivalTimes.get(vehicleId, 0)
+            startTime = arrivalTimes.get(vehicleId, datetime)
 
             tripData = {
                 "driver": vehicle["driver"],
@@ -146,7 +147,7 @@ def processQuadrantData(quadrantRoutes, stopFlag):
                 prevIdx = route[i - 1]
                 currIdx = route[i]
                 seconds = times[prevIdx][currIdx] if times else 0
-                totalTime += seconds
+                totalTime += timedelta(seconds=seconds)
                 cumulativeTime.append(totalTime)
 
             arrivalTimes[vehicleId] = totalTime
@@ -160,30 +161,36 @@ def processQuadrantData(quadrantRoutes, stopFlag):
                 tripData["members"].append({
                     **member,
                     "stopNum": stopNum,
-                    "pickup": convertSeconds(cumulativeTime[stopNum]),
-                    "arrival": convertSeconds(cumulativeTime[-1])
+                    "pickup": cumulativeTime[stopNum].strftime("%I:%M %p"),
+                    "arrival": cumulativeTime[-1].strftime("%I:%M %p")
                 })
 
             trips.append(tripData)
 
     return trips
 
-def convertSeconds(seconds):
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    time = f"{hours:02d}:{minutes:02d}"
-
-    return time
-
-def cluster(filePath, date, insurance, stopFlag, callback):
+def cluster(filePath, datetime, insurance, statusLabel, stopFlag, callback):
     try:
-        depot, vehicles, members = getMembersFromExcel(filePath, date, insurance, stopFlag)
+        statusLabel.configure(text=f"Retrieving Members...")
+        statusLabel.update()
+        depot, vehicles, members = getMembersFromExcel(filePath, datetime, insurance, stopFlag)
         if not members:
             raise ValueError("Missing data")
 
+        statusLabel.configure(text=f"Setting Quadrants...")
+        statusLabel.update()
         quadrantRoutes = routeByQuadrant(members, depot, vehicles, stopFlag)
-        routesData = processQuadrantData(quadrantRoutes, stopFlag)
+
+        statusLabel.configure(text=f"Processing Data...")
+        statusLabel.update()
+        routesData = processQuadrantData(quadrantRoutes, datetime, stopFlag)
+
+        statusLabel.configure(text=f"Plotting Map...")
+        statusLabel.update()
         map = plotCoordinatesOnMap(depot, routesData, stopFlag)
+
+        statusLabel.configure(text=f"Preparing Excel...")
+        statusLabel.update()
         excel = exportMembersToExcel(routesData, stopFlag)
         
         callback(map, excel, error=None)
