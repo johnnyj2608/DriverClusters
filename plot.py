@@ -51,14 +51,15 @@ def plotCoordinatesOnMap(depot, routesData, stopFlag):
     for trip in routesData:
         if stopFlag.value: return None
         fg = folium.FeatureGroup(
-            name=f"{trip['driver']} ({len(trip['members'])}/{trip['capacity']})"
+            name=f"#{trip['trip']}. {trip['driver']} ({len(trip['members'])}/{trip['capacity']})"
         )
 
         links = generateGoogleMapsHtml(depot, trip["members"])
         for member in trip["members"]:
             text = (
                 f"<strong>{member['name']}</strong><br>"
-                f"{trip['driver']} | Stop #{member['stopNum']}<br>"
+                f"{trip['driver']}<br>"
+                f"Trip {trip['trip']} | Stop #{member['stopNum']}<br>"
                 f"{links}"
             )
 
