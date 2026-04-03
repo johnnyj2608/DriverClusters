@@ -131,13 +131,13 @@ class ClusterGUI:
         self.buttonFrame.grid_columnconfigure(0, weight=1)
 
         self.calculateButton = ctk.CTkButton(master=self.buttonFrame, text="Calculate", command=self.calculate, state="disabled")
-        self.calculateButton.grid(row=0, column=0, pady=6, padx=10)
+        self.calculateButton.grid(row=0, column=0, pady=4, padx=10)
 
         self.mapButton = ctk.CTkButton(master=self.buttonFrame, text="Open Map", command=self.openMap, state="disabled")
-        self.mapButton.grid(row=1, column=0, pady=6, padx=10)
+        self.mapButton.grid(row=1, column=0, pady=4, padx=10)
 
         self.excelButton = ctk.CTkButton(master=self.buttonFrame, text="Download Excel", command=self.downloadExcel, state="disabled")
-        self.excelButton.grid(row=2, column=0, pady=6, padx=10)
+        self.excelButton.grid(row=2, column=0, pady=4, padx=10)
 
     def browseFolder(self):
         self.filePath = filedialog.askopenfilename(title="Select a File", filetypes=[("Excel files", "*.xlsx")])
@@ -159,7 +159,7 @@ class ClusterGUI:
             self.yearEntry.insert(0, today.year)
 
             self.hourEntry.delete(0, "end")
-            self.hourEntry.insert(0, "8")
+            self.hourEntry.insert(0, "7")
 
             self.minuteEntry.delete(0, "end")
             self.minuteEntry.insert(0, "00")

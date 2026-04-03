@@ -187,7 +187,7 @@ def cluster(filePath, datetime, insurance, statusLabel, stopFlag, callback):
 
         statusLabel.configure(text=f"Plotting Map...")
         statusLabel.update()
-        map = plotCoordinatesOnMap(depot, routesData, stopFlag)
+        map = plotCoordinatesOnMap(depot, routesData, datetime, stopFlag)
 
         statusLabel.configure(text=f"Preparing Excel...")
         statusLabel.update()

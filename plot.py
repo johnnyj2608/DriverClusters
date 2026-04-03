@@ -35,10 +35,19 @@ def generateGoogleMapsHtml(depot, trip):
 
     return linksHtml
 
-def plotCoordinatesOnMap(depot, routesData, stopFlag):
+def plotCoordinatesOnMap(depot, routesData, datetime, stopFlag):
     center = (40.650002, -73.949997)    # NYC
     m = folium.Map(location=center, zoom_start=12, tiles=None)
     folium.TileLayer('CartoDB Positron', control=False).add_to(m)
+
+    dateStr = f"{datetime.month}/{datetime.day}/{datetime.year}"
+
+    m.get_root().html.add_child(folium.Element(f"<title>{dateStr}</title>"))
+    m.get_root().html.add_child(folium.Element(f"""
+    <div style="text-align:center; font-size:24px; font-weight:bold; border-bottom: 1px solid black; ">
+        Trips For {dateStr}
+    </div>
+    """))
 
     # Depot marker
     folium.Marker(
