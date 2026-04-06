@@ -1,18 +1,11 @@
 import math
 import traceback
+import random
 from collections import defaultdict
 from datetime import timedelta
 from excel import getMembersFromExcel, exportMembersToExcel
-from cvrp import computeRoutes
+from cvrp import haversine, computeRoutes
 from plot import plotCoordinatesOnMap
-
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371000
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
-    return 2*R*math.atan2(math.sqrt(a), math.sqrt(1-a))
 
 def depotBearing(depot, member):
     lat1, lon1 = math.radians(depot[0]), math.radians(depot[1])
@@ -76,9 +69,6 @@ def calcMemberWedges(
     return wedges
 
 def calcVehicleWedges(vehicles, wedges, stopFlag):
-    vehicleList = vehicles.copy()
-    vehicleList.sort(key=lambda v: v["capacity"])
-    
     totalMembers = 0
     for w in wedges:
         totalMembers += wedges[w]["count"]
@@ -87,21 +77,17 @@ def calcVehicleWedges(vehicles, wedges, stopFlag):
     tripNumber = 1
 
     while totalMembers > 0:
-        vehiclesBatch = vehicleList.copy()
-
-        while vehiclesBatch:
+        for v in vehicles:
             if stopFlag.value: return None
-            vehicle = vehiclesBatch.pop()
 
-            bestWedge = None
-            minDiff = None
+            bestWedge, minDiff = None, None
 
             for w in wedges:
                 remaining = wedges[w]["count"]
                 if remaining <= 0:
                     continue
 
-                diff = vehicle["capacity"] - remaining
+                diff = v["capacity"] - remaining
                 if bestWedge is None or diff < minDiff:
                     bestWedge = w
                     minDiff = diff
@@ -111,12 +97,12 @@ def calcVehicleWedges(vehicles, wedges, stopFlag):
             if bestWedge is None:
                 break
 
-            assignedCount = min(vehicle["capacity"], wedges[bestWedge]["count"])
+            assignedCount = min(v["capacity"], wedges[bestWedge]["count"])
             wedges[bestWedge]["count"] -= assignedCount
             totalMembers -= assignedCount
 
             assignments[bestWedge].append({
-                **vehicle,
+                **v,
                 "trip": tripNumber
             })
 
@@ -134,7 +120,7 @@ def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
 
     wedgeRoutes = {}
     totalWedges = len(vehicleWedges)
-    
+
     for i, (wedge, vehiclesList) in enumerate(vehicleWedges.items(), start=1):
         if stopFlag.value: return None
 
@@ -167,7 +153,7 @@ def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
 
     return wedgeRoutes
 
-def processRouteData(wedgeRoutes, datetime, stopFlag):
+def processRouteData(wedgeRoutes, initialTime, stopFlag):
     trips = []
     arrivalTimes = {}
 
@@ -185,8 +171,6 @@ def processRouteData(wedgeRoutes, datetime, stopFlag):
             vehicle = vehicles[trip]
             vehicleId = vehicle["carId"]
 
-            startTime = arrivalTimes.get(vehicleId, datetime)
-
             tripData = {
                 "driver": vehicle["driver"],
                 "carId": vehicle["carId"],
@@ -195,6 +179,10 @@ def processRouteData(wedgeRoutes, datetime, stopFlag):
                 "members": []
             }
 
+            startTime = arrivalTimes.get(vehicleId, initialTime)
+            randomOffset = random.randint(0, 5)
+            startTime += timedelta(minutes=randomOffset)
+
             cumulativeTime = [startTime]
             totalTime = startTime
 
@@ -202,7 +190,7 @@ def processRouteData(wedgeRoutes, datetime, stopFlag):
             for i in range(1, len(route)):
                 prevIdx = route[i - 1]
                 currIdx = route[i]
-                seconds = times[prevIdx][currIdx] if times else 0
+                seconds = times[prevIdx][currIdx]
                 totalTime += timedelta(seconds=seconds)
                 cumulativeTime.append(totalTime)
 
@@ -218,18 +206,18 @@ def processRouteData(wedgeRoutes, datetime, stopFlag):
                     **member,
                     "stopNum": stopNum,
                     "pickup": cumulativeTime[stopNum].strftime("%I:%M %p"),
-                    "arrival": cumulativeTime[-1].strftime("%I:%M %p")
+                    "arrival": totalTime.strftime("%I:%M %p")
                 })
 
             trips.append(tripData)
 
     return trips
 
-def cluster(filePath, datetime, insurance, statusLabel, stopFlag, callback):
+def cluster(filePath, initialTime, insurance, statusLabel, stopFlag, callback):
     try:
         statusLabel.configure(text=f"Retrieving Members...")
         statusLabel.update() 
-        depot, vehicles, members = getMembersFromExcel(filePath, datetime, insurance, stopFlag)
+        depot, vehicles, members = getMembersFromExcel(filePath, initialTime, insurance, stopFlag)
         if not members:
             raise ValueError("Missing data")
         
@@ -239,11 +227,11 @@ def cluster(filePath, datetime, insurance, statusLabel, stopFlag, callback):
 
         statusLabel.configure(text=f"Processing Data...")
         statusLabel.update()
-        routesData = processRouteData(wedgeRoutes, datetime, stopFlag)
+        routesData = processRouteData(wedgeRoutes, initialTime, stopFlag)
 
         statusLabel.configure(text=f"Plotting Map...")
         statusLabel.update()
-        map = plotCoordinatesOnMap(depot, routesData, datetime, stopFlag)
+        map = plotCoordinatesOnMap(depot, routesData, initialTime, stopFlag)
 
         statusLabel.configure(text=f"Preparing Excel...")
         statusLabel.update()

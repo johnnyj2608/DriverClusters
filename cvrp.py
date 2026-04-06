@@ -6,7 +6,7 @@ from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
 
 # -----------------------------
-# Haversine backup
+# Haversine backup (TESTING ONLY)
 # -----------------------------
 def haversine(lat1, lon1, lat2, lon2):
     R = 6371000  # meters
@@ -46,7 +46,7 @@ def getHaversineMatrix(locations):
 # -----------------------------
 # OSRM road-network distance
 # -----------------------------
-def getDistanceAndTimeMatrix(locations):
+def getDistanceTimeMatrix(locations):
     coordsStr = ";".join([f"{lon},{lat}" for lat, lon in locations])
     url = f"https://router.project-osrm.org/table/v1/driving/{coordsStr}?annotations=distance,duration"
 
@@ -77,7 +77,7 @@ def computeRoutes(mandatory, optional, depot, vehicles):
 
     locations = [depot] + [(m['lat'], m['lon']) for m in allMembers]
     demands = [0] + [int(m.get('demand', 1)) for m in allMembers]
-    distanceMatrix, timeMatrix = getDistanceAndTimeMatrix(locations)
+    distanceMatrix, timeMatrix = getDistanceTimeMatrix(locations)
 
     numVehicles = len(vehicles)
     vehicleCapacities = []
@@ -110,14 +110,10 @@ def computeRoutes(mandatory, optional, depot, vehicles):
         'Capacity'
     )
 
-    for i in range(1, len(locations)):  # skip depot (0)
+    for i in range(mandatoryCount + 1, len(allMembers) + 1):
         index = manager.NodeToIndex(i)
-
-        if i <= mandatoryCount:
-            pass
-        else:
-            penalty = 1000 + int(distanceMatrix[0][i] / 10)
-            routing.AddDisjunction([index], penalty)
+        penalty = 1000 + int(distanceMatrix[0][i] / 10)
+        routing.AddDisjunction([index], penalty)
 
     searchParameters = pywrapcp.DefaultRoutingSearchParameters()
     searchParameters.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
