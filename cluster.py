@@ -1,70 +1,67 @@
-import math
 import traceback
 import random
+import numpy as np
 from collections import defaultdict
 from datetime import timedelta
 from excel import getMembersFromExcel, exportMembersToExcel
-from cvrp import haversine, computeRoutes
+from cvrp import computeRoutes
 from plot import plotCoordinatesOnMap
 
-def depotBearing(depot, member):
-    lat1, lon1 = math.radians(depot[0]), math.radians(depot[1])
-    lat2, lon2 = math.radians(member['lat']), math.radians(member['lon'])
-    dLon = lon2 - lon1
-    x = math.sin(dLon) * math.cos(lat2)
-    y = math.cos(lat1)*math.sin(lat2) - math.sin(lat1)*math.cos(lat2)*math.cos(dLon)
-    bearing = math.atan2(x, y)
-    return (math.degrees(bearing) + 360) % 360
+def depotBearing(depot, lats, lons):
+    lat1, lon1 = np.radians(depot[0]), np.radians(depot[1])
+    lat2, lon2 = np.radians(lats), np.radians(lons)
 
-def calcMemberWedges(
-        members, 
-        depot, 
-        innerRadius, 
-        innerAngle, 
-        outerSplits,
-        stopFlag, 
-    ):
+    dLon = lon2 - lon1
+    x = np.sin(dLon) * np.cos(lat2)
+    y = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(dLon)
+    bearings = np.degrees(np.arctan2(x, y)) % 360
+    return bearings
+
+def haversine(lat1, lon1, lats2, lons2):
+    R = 6371000  # Earth radius in meters
+    lat1, lon1 = np.radians(lat1), np.radians(lon1)
+    lats2, lons2 = np.radians(lats2), np.radians(lons2)
+    
+    dlat = lats2 - lat1
+    dlon = lons2 - lon1
+
+    a = np.sin(dlat/2)**2 + np.cos(lat1)*np.cos(lats2)*np.sin(dlon/2)**2
+    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1-a))
+    return R * c
+
+def calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopFlag):
     numFans = int(360 / innerAngle)
     totalOuterWedges = numFans * outerSplits
 
     wedges = {
-        "inner": {},
-        "outer": {},
-        "count": 0,
+        "inner": {i: {"members": [], "count": 0} for i in range(numFans)},
+        "outer": {i: {"members": [], "count": 0} for i in range(totalOuterWedges)},
+        "count": len(members),
     }
 
-    for i in range(numFans):
-        wedges["inner"][i] = {"members": [], "count": 0}
+    # Convert member data to numpy arrays
+    lats = np.array([m['lat'] for m in members])
+    lons = np.array([m['lon'] for m in members])
 
-    # Initialize outer wedges
-    for i in range(totalOuterWedges):
-        wedges["outer"][i] = {"members": [], "count": 0}
+    # Compute distances and bearings vectorized
+    dists = haversine(depot[0], depot[1], lats, lons)
+    bearings = depotBearing(depot, lats, lons)
 
     sliceAngle = innerAngle / outerSplits
 
-    for m in members:
+    fanIndices = (bearings // innerAngle).astype(int)
+    diffAngles = (bearings - fanIndices * innerAngle + 360) % 360
+    splitIndices = np.minimum((diffAngles // sliceAngle).astype(int), outerSplits - 1)
+    wedgeIndices = fanIndices * outerSplits + splitIndices
+
+    for idx, member in enumerate(members):
         if stopFlag.value: return None
-
-        dist = haversine(depot[0], depot[1], m['lat'], m['lon'])
-        bearing = depotBearing(depot, m)
-
-        # Determine which fan the member belongs to (0°, 90°, 180°, 270°)
-        fanIndex = int(bearing // innerAngle)
-        fanStart = fanIndex * innerAngle
-
-        # Angle relative to the start of the fan
-        diff = (bearing - fanStart + 360) % 360
-
-        if dist <= innerRadius:
-            wedges["inner"][fanIndex]["members"].append(m)
-            wedges["inner"][fanIndex]["count"] += 1
+        if dists[idx] <= innerRadius:
+            wedges["inner"][fanIndices[idx]]["members"].append(member)
+            wedges["inner"][fanIndices[idx]]["count"] += 1
         else:
-            splitIndex = int(diff // sliceAngle)
-            splitIndex = min(splitIndex, outerSplits - 1)
-            wedgeIndex = fanIndex * outerSplits + splitIndex
-            wedges["outer"][wedgeIndex]["members"].append(m)
-            wedges["outer"][wedgeIndex]["count"] += 1
-        wedges["count"] += 1
+            wedges["outer"][wedgeIndices[idx]]["members"].append(member)
+            wedges["outer"][wedgeIndices[idx]]["count"] += 1
 
     return wedges
 
