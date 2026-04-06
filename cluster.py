@@ -75,13 +75,13 @@ def calcMemberWedges(
 
     return wedges
 
-def calcVehicleWedges(vehicles, wedges, outerSplits, stopFlag):
+def calcVehicleWedges(vehicles, wedges, stopFlag):
     vehicleList = vehicles.copy()
     vehicleList.sort(key=lambda v: v["capacity"])
     
-    innerWedges = wedges["inner"]
-    outerWedges = wedges["outer"]
-    totalMembers = wedges["count"]
+    totalMembers = 0
+    for w in wedges:
+        totalMembers += wedges[w]["count"]
 
     assignments = defaultdict(list)
     tripNumber = 1
@@ -96,8 +96,8 @@ def calcVehicleWedges(vehicles, wedges, outerSplits, stopFlag):
             bestWedge = None
             minDiff = None
 
-            for w in outerWedges:
-                remaining = outerWedges[w]["count"]
+            for w in wedges:
+                remaining = wedges[w]["count"]
                 if remaining <= 0:
                     continue
 
@@ -109,26 +109,15 @@ def calcVehicleWedges(vehicles, wedges, outerSplits, stopFlag):
                         break
 
             if bestWedge is None:
-                break   # Need a way to pick up only inner members if outer is done
+                break
 
-            assignedCount = min(vehicle["capacity"], outerWedges[bestWedge]["count"])
-            outerWedges[bestWedge]["count"] -= assignedCount
+            assignedCount = min(vehicle["capacity"], wedges[bestWedge]["count"])
+            wedges[bestWedge]["count"] -= assignedCount
             totalMembers -= assignedCount
-
-            innerAssigned = 0
-            leftoverCap = vehicle["capacity"] - assignedCount
-            if leftoverCap > 0:
-                innerIndex = bestWedge % outerSplits
-                innerRemaining = innerWedges[innerIndex]["count"]
-                innerAssigned = min(leftoverCap, innerRemaining)
-
-                innerWedges[innerIndex]["count"] -= innerAssigned
-                totalMembers -= innerAssigned
 
             assignments[bestWedge].append({
                 **vehicle,
-                "trip": tripNumber,
-                "innerCount": innerAssigned
+                "trip": tripNumber
             })
 
         tripNumber += 1
@@ -138,7 +127,10 @@ def calcVehicleWedges(vehicles, wedges, outerSplits, stopFlag):
 def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
     innerRadius, innerAngle, outerSplits = 500, 90, 3
     memberWedges = calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopFlag)
-    vehicleWedges = calcVehicleWedges(vehicles, memberWedges, outerSplits, stopFlag)
+    outerWedges = memberWedges["outer"]
+    innerWedges = memberWedges["inner"]
+
+    vehicleWedges = calcVehicleWedges(vehicles, outerWedges, stopFlag)
 
     wedgeRoutes = {}
     totalWedges = len(vehicleWedges)
@@ -149,33 +141,29 @@ def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
         if not vehiclesList:
             continue
 
-        vehicleCapacities, innerCount = [], 0
-        for v in vehiclesList:
-            vehicleCapacities.append(v["capacity"])
-            innerCount += v["innerCount"]
+        outerMembers = outerWedges[wedge]["members"]
+        innerMembers = innerWedges[wedge // outerSplits]["members"]
 
-        membersList = memberWedges["outer"][wedge]["members"]
-        innerMembers = memberWedges["inner"][wedge % outerSplits]["members"]
-        for _ in range(innerCount):
-            membersList.append(innerMembers.pop())
-
-        if not membersList:
+        if not outerMembers:
             continue
 
         statusLabel.configure(text=f"Setting Wedge {i}/{totalWedges}...")
         statusLabel.update()
-        routes, times = computeRoutes(
-            membersList,
+        routes, times, assigned, leftover = computeRoutes(
+            outerMembers,
+            innerMembers,
             depot,
-            vehicleCapacities
+            vehiclesList,
         )
 
         wedgeRoutes[wedge] = {
-            "members": membersList,
+            "members": assigned,
             "routes": routes,
             "times": times,
             "vehicles": vehiclesList
         }
+
+        innerWedges[wedge // outerSplits]["members"] = leftover
 
     return wedgeRoutes
 

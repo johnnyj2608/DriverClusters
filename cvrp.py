@@ -71,15 +71,23 @@ def getDistanceAndTimeMatrix(locations):
 # -----------------------------
 # Compute vehicle routes
 # -----------------------------
-def computeRoutes(members, depot, vehicles):
-    if not members:
-        return []
+def computeRoutes(mandatory, optional, depot, vehicles):
+    allMembers = mandatory + optional
+    mandatoryCount = len(mandatory)
 
-    locations = [depot] + [(m['lat'], m['lon']) for m in members]
-    demands = [0] + [int(m.get('demand', 1)) for m in members]
+    locations = [depot] + [(m['lat'], m['lon']) for m in allMembers]
+    demands = [0] + [int(m.get('demand', 1)) for m in allMembers]
     distanceMatrix, timeMatrix = getDistanceAndTimeMatrix(locations)
 
     numVehicles = len(vehicles)
+    vehicleCapacities = []
+    for v in vehicles:
+        vehicleCapacities.append(v["capacity"])
+
+    mandatoryDemand = sum(demands[1:mandatoryCount+1])
+    totalCapacity = sum(vehicleCapacities)
+    if mandatoryDemand > totalCapacity:
+        raise ValueError("Not enough capacity")
 
     manager = pywrapcp.RoutingIndexManager(len(distanceMatrix), numVehicles, 0)
     routing = pywrapcp.RoutingModel(manager)
@@ -97,24 +105,51 @@ def computeRoutes(members, depot, vehicles):
     routing.AddDimensionWithVehicleCapacity(
         demandCallbackIndex,
         0,
-        vehicles,
+        vehicleCapacities,
         True,
         'Capacity'
     )
+
+    for i in range(1, len(locations)):  # skip depot (0)
+        index = manager.NodeToIndex(i)
+
+        if i <= mandatoryCount:
+            pass
+        else:
+            penalty = 1000 + int(distanceMatrix[0][i] / 10)
+            routing.AddDisjunction([index], penalty)
 
     searchParameters = pywrapcp.DefaultRoutingSearchParameters()
     searchParameters.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
     solution = routing.SolveWithParameters(searchParameters)
 
     routes = []
+    usedIndices = set()
+
     if solution:
         for vehicleId in range(numVehicles):
             index = routing.Start(vehicleId)
             route = []
+
             while not routing.IsEnd(index):
-                route.append(manager.IndexToNode(index))
+                node = manager.IndexToNode(index)
+                route.append(node)
+
+                if node != 0:
+                    usedIndices.add(node - 1)
+
                 index = solution.Value(routing.NextVar(index))
+
             route.append(manager.IndexToNode(index))
-            if route:
+            if len(route) > 2:  # depot -> something -> depot
                 routes.append(route)
-    return routes, timeMatrix
+
+    assignedMembers = [allMembers[i] for i in usedIndices]
+
+    leftoverMembers = [
+        allMembers[i]
+        for i in range(mandatoryCount, len(allMembers))
+        if i not in usedIndices
+    ]
+
+    return routes, timeMatrix, assignedMembers, leftoverMembers
