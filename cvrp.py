@@ -34,13 +34,22 @@ def getDistanceTimeMatrix(locations, retries=3, pause=5):
 # -----------------------------
 # Compute vehicle routes
 # -----------------------------
-def computeRoutes(mandatory, optional, depot, vehicles):
+def computeRoutes(
+        mandatory, 
+        optional, 
+        depot, 
+        vehicles,
+        distanceMatrix=None,
+        timeMatrix=None
+    ):
     allMembers = mandatory + optional
     mandatoryCount = len(mandatory)
 
     locations = [depot] + [(m['lat'], m['lon']) for m in allMembers]
     demands = [0] + [int(m.get('demand', 1)) for m in allMembers]
-    distanceMatrix, timeMatrix = getDistanceTimeMatrix(locations)
+
+    if distanceMatrix is None or timeMatrix is None:
+        distanceMatrix, timeMatrix = getDistanceTimeMatrix(locations)
 
     numVehicles = len(vehicles)
     vehicleCapacities = []

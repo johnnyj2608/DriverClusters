@@ -4,7 +4,7 @@ import numpy as np
 from collections import defaultdict
 from datetime import timedelta
 from excel import getMembersFromExcel, exportMembersToExcel
-from cvrp import computeRoutes
+from cvrp import getDistanceTimeMatrix, computeRoutes
 from plot import plotCoordinatesOnMap
 
 def depotBearing(depot, lats, lons):
@@ -107,11 +107,33 @@ def calcVehicleWedges(vehicles, wedges, stopFlag):
 
     return assignments
 
+def sliceMatrixWedge(fullDistanceMatrix, fullTimeMatrix, wedgeMembers, memberToIndex):
+    indices = [0]
+    for m in wedgeMembers:
+        indices.append(memberToIndex[id(m)])
+
+    wedgeDistanceMatrix = []
+    wedgeTimeMatrix = []
+
+    for i in indices:
+        distRow = [fullDistanceMatrix[i][j] for j in indices]
+        timeRow = [fullTimeMatrix[i][j] for j in indices]
+        wedgeDistanceMatrix.append(distRow)
+        wedgeTimeMatrix.append(timeRow)
+
+    return wedgeDistanceMatrix, wedgeTimeMatrix
+
 def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
     innerRadius, innerAngle, outerSplits = 500, 90, 3
     memberWedges = calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopFlag)
     outerWedges = memberWedges["outer"]
     innerWedges = memberWedges["inner"]
+
+    locations = [depot] + [(m['lat'], m['lon']) for m in members]
+    fullDistanceMatrix, fullTimeMatrix = getDistanceTimeMatrix(locations)
+    memberToIndex = {}
+    for i, m in enumerate(members):
+        memberToIndex[id(m)] = i + 1
 
     vehicleWedges = calcVehicleWedges(vehicles, outerWedges, stopFlag)
 
@@ -130,6 +152,13 @@ def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
         if not outerMembers:
             continue
 
+        distanceMatrix, timeMatrix = sliceMatrixWedge(
+            fullDistanceMatrix,
+            fullTimeMatrix,
+            wedgeMembers=outerMembers + innerMembers,
+            memberToIndex=memberToIndex
+        )
+
         statusLabel.configure(text=f"Setting Wedge {i}/{totalWedges}...")
         statusLabel.update()
         routes, times, assigned, leftover = computeRoutes(
@@ -137,6 +166,8 @@ def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
             innerMembers,
             depot,
             vehiclesList,
+            distanceMatrix = distanceMatrix,
+            timeMatrix = timeMatrix,
         )
 
         wedgeRoutes[wedge] = {
