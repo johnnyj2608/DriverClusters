@@ -1,5 +1,6 @@
 # Capacitated Vehicle Routing Problem
 
+import time
 import requests
 from ortools.constraint_solver import routing_enums_pb2
 from ortools.constraint_solver import pywrapcp
@@ -7,27 +8,28 @@ from ortools.constraint_solver import pywrapcp
 # -----------------------------
 # OSRM road-network distance
 # -----------------------------
-def getDistanceTimeMatrix(locations):
+def getDistanceTimeMatrix(locations, retries=3, pause=5):
     coordsStr = ";".join([f"{lon},{lat}" for lat, lon in locations])
     url = f"https://router.project-osrm.org/table/v1/driving/{coordsStr}?annotations=distance,duration"
 
-    try:
-        r = requests.get(
-            url,
-            timeout=(10, 60),
-            headers={"User-Agent": "driverclusters/1.0"}
-        )
-        r.raise_for_status()
-        data = r.json()
-
-        if "distances" not in data or "durations" not in data:
-            raise ValueError("OSRM request failed: " + str(data))
-
-        return data["distances"], data["durations"]
-
-    except Exception as e:
-        print(f"OSRM failed, using Haversine backup: {e}")
-        # return getHaversineMatrix(locations)
+    for attempt in range(1, retries+1):
+        try:
+            r = requests.get(
+                url,
+                timeout=(10, 60),
+                headers={"User-Agent": "driverclusters/1.0"}
+            )
+            r.raise_for_status()
+            data = r.json()
+            if "distances" not in data or "durations" not in data:
+                raise ValueError("OSRM request failed: " + str(data))
+            return data["distances"], data["durations"]
+        except Exception as e:
+            print(f"OSRM attempt {attempt} failed: {e}")
+            if attempt < retries:
+                time.sleep(pause)
+            else:
+                raise RuntimeError(f"OSRM failed after {retries} attempts")
 
 # -----------------------------
 # Compute vehicle routes
