@@ -1,121 +1,189 @@
+import math
 import traceback
+from collections import defaultdict
 from datetime import timedelta
 from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import computeRoutes
 from plot import plotCoordinatesOnMap
 
-def quadrantMembers(members, depot):
-    depotLat, depotLon = depot
-    quadrants = {
-        "NE": {"members": [], "count": 0},
-        "NW": {"members": [], "count": 0},
-        "SE": {"members": [], "count": 0},
-        "SW": {"members": [], "count": 0}
+def haversine(lat1, lon1, lat2, lon2):
+    R = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi/2)**2 + math.cos(phi1)*math.cos(phi2)*math.sin(dlambda/2)**2
+    return 2*R*math.atan2(math.sqrt(a), math.sqrt(1-a))
+
+def depotBearing(depot, member):
+    lat1, lon1 = math.radians(depot[0]), math.radians(depot[1])
+    lat2, lon2 = math.radians(member['lat']), math.radians(member['lon'])
+    dLon = lon2 - lon1
+    x = math.sin(dLon) * math.cos(lat2)
+    y = math.cos(lat1)*math.sin(lat2) - math.sin(lat1)*math.cos(lat2)*math.cos(dLon)
+    bearing = math.atan2(x, y)
+    return (math.degrees(bearing) + 360) % 360
+
+def calcMemberWedges(
+        members, 
+        depot, 
+        innerRadius, 
+        innerAngle, 
+        outerSplits,
+        stopFlag, 
+    ):
+    numFans = int(360 / innerAngle)
+    totalOuterWedges = numFans * outerSplits
+
+    wedges = {
+        "inner": {},
+        "outer": {},
+        "count": 0,
     }
 
+    for i in range(numFans):
+        wedges["inner"][i] = {"members": [], "count": 0}
+
+    # Initialize outer wedges
+    for i in range(totalOuterWedges):
+        wedges["outer"][i] = {"members": [], "count": 0}
+
+    sliceAngle = innerAngle / outerSplits
+
     for m in members:
-        if m["lat"] >= depotLat and m["lon"] >= depotLon:
-            quadrant = "NE"
-        elif m["lat"] >= depotLat and m["lon"] < depotLon:
-            quadrant = "NW"
-        elif m["lat"] < depotLat and m["lon"] >= depotLon:
-            quadrant = "SE"
+        if stopFlag.value: return None
+
+        dist = haversine(depot[0], depot[1], m['lat'], m['lon'])
+        bearing = depotBearing(depot, m)
+
+        # Determine which fan the member belongs to (0°, 90°, 180°, 270°)
+        fanIndex = int(bearing // innerAngle)
+        fanStart = fanIndex * innerAngle
+
+        # Angle relative to the start of the fan
+        diff = (bearing - fanStart + 360) % 360
+
+        if dist <= innerRadius:
+            wedges["inner"][fanIndex]["members"].append(m)
+            wedges["inner"][fanIndex]["count"] += 1
         else:
-            quadrant = "SW"
+            splitIndex = int(diff // sliceAngle)
+            splitIndex = min(splitIndex, outerSplits - 1)
+            wedgeIndex = fanIndex * outerSplits + splitIndex
+            wedges["outer"][wedgeIndex]["members"].append(m)
+            wedges["outer"][wedgeIndex]["count"] += 1
+        wedges["count"] += 1
 
-        quadrants[quadrant]["members"].append(m)
-        quadrants[quadrant]["count"] += 1
+    return wedges
 
-    return quadrants
-
-def quadrantVehicles(quadrants, vehicles):
+def calcVehicleWedges(vehicles, wedges, outerSplits, stopFlag):
     vehicleList = vehicles.copy()
     vehicleList.sort(key=lambda v: v["capacity"])
+    
+    innerWedges = wedges["inner"]
+    outerWedges = wedges["outer"]
+    totalMembers = wedges["count"]
 
-    totalMembers = 0
-    for q in quadrants.values():
-        totalMembers += q["count"]
-
-    assignments = {}
-    for q in quadrants:
-        assignments[q] = []
-        
+    assignments = defaultdict(list)
     tripNumber = 1
 
     while totalMembers > 0:
         vehiclesBatch = vehicleList.copy()
 
         while vehiclesBatch:
+            if stopFlag.value: return None
             vehicle = vehiclesBatch.pop()
 
-            bestQ = None
-            smallestDiff = None
+            bestWedge = None
+            minDiff = None
 
-            for q in quadrants:
-                remaining = quadrants[q]["count"]
+            for w in outerWedges:
+                remaining = outerWedges[w]["count"]
                 if remaining <= 0:
                     continue
 
                 diff = vehicle["capacity"] - remaining
-                if bestQ is None or diff < smallestDiff:
-                    bestQ = q
-                    smallestDiff = diff
+                if bestWedge is None or diff < minDiff:
+                    bestWedge = w
+                    minDiff = diff
                     if diff == 0:
                         break
 
-            if bestQ is None:
-                break
+            if bestWedge is None:
+                break   # Need a way to pick up only inner members if outer is done
 
-            assignments[bestQ].append({
+            assignedCount = min(vehicle["capacity"], outerWedges[bestWedge]["count"])
+            outerWedges[bestWedge]["count"] -= assignedCount
+            totalMembers -= assignedCount
+
+            innerAssigned = 0
+            leftoverCap = vehicle["capacity"] - assignedCount
+            if leftoverCap > 0:
+                innerIndex = bestWedge % outerSplits
+                innerRemaining = innerWedges[innerIndex]["count"]
+                innerAssigned = min(leftoverCap, innerRemaining)
+
+                innerWedges[innerIndex]["count"] -= innerAssigned
+                totalMembers -= innerAssigned
+
+            assignments[bestWedge].append({
                 **vehicle,
-                "trip": tripNumber
+                "trip": tripNumber,
+                "innerCount": innerAssigned
             })
 
-            assignedCount = min(vehicle["capacity"], quadrants[bestQ]["count"])
-            quadrants[bestQ]["count"] -= assignedCount
-            totalMembers -= assignedCount
         tripNumber += 1
 
     return assignments
 
-def routeByQuadrant(members, depot, vehicles, stopFlag):
-    assignedMembers = quadrantMembers(members, depot)
-    assignedVehicles = quadrantVehicles(assignedMembers, vehicles)
+def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
+    innerRadius, innerAngle, outerSplits = 500, 90, 3
+    memberWedges = calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopFlag)
+    vehicleWedges = calcVehicleWedges(vehicles, memberWedges, outerSplits, stopFlag)
 
-    quadrantRoutes = {}
-
-    for quadrant, vehiclesList in assignedVehicles.items():
+    wedgeRoutes = {}
+    totalWedges = len(vehicleWedges)
+    
+    for i, (wedge, vehiclesList) in enumerate(vehicleWedges.items(), start=1):
         if stopFlag.value: return None
 
-        membersList = assignedMembers[quadrant]["members"]
-
-        if not membersList or not vehiclesList:
+        if not vehiclesList:
             continue
 
-        vehicleCapacities = []
+        vehicleCapacities, innerCount = [], 0
         for v in vehiclesList:
             vehicleCapacities.append(v["capacity"])
+            innerCount += v["innerCount"]
 
+        membersList = memberWedges["outer"][wedge]["members"]
+        innerMembers = memberWedges["inner"][wedge % outerSplits]["members"]
+        for _ in range(innerCount):
+            membersList.append(innerMembers.pop())
+
+        if not membersList:
+            continue
+
+        statusLabel.configure(text=f"Setting Wedge {i}/{totalWedges}...")
+        statusLabel.update()
         routes, times = computeRoutes(
             membersList,
             depot,
             vehicleCapacities
         )
 
-        quadrantRoutes[quadrant] = {
+        wedgeRoutes[wedge] = {
             "members": membersList,
             "routes": routes,
             "times": times,
             "vehicles": vehiclesList
         }
 
-    return quadrantRoutes
+    return wedgeRoutes
 
-def processQuadrantData(quadrantRoutes, datetime, stopFlag):
+def processRouteData(wedgeRoutes, datetime, stopFlag):
     trips = []
     arrivalTimes = {}
 
-    for data in quadrantRoutes.values():
+    for data in wedgeRoutes.values():
         if stopFlag.value: return None
 
         routes = data["routes"]
@@ -172,18 +240,18 @@ def processQuadrantData(quadrantRoutes, datetime, stopFlag):
 def cluster(filePath, datetime, insurance, statusLabel, stopFlag, callback):
     try:
         statusLabel.configure(text=f"Retrieving Members...")
-        statusLabel.update()
+        statusLabel.update() 
         depot, vehicles, members = getMembersFromExcel(filePath, datetime, insurance, stopFlag)
         if not members:
             raise ValueError("Missing data")
-
-        statusLabel.configure(text=f"Setting Quadrants...")
+        
+        statusLabel.configure(text=f"Setting Wedges...")
         statusLabel.update()
-        quadrantRoutes = routeByQuadrant(members, depot, vehicles, stopFlag)
+        wedgeRoutes = routeByWedges(members, depot, vehicles, statusLabel, stopFlag)
 
         statusLabel.configure(text=f"Processing Data...")
         statusLabel.update()
-        routesData = processQuadrantData(quadrantRoutes, datetime, stopFlag)
+        routesData = processRouteData(wedgeRoutes, datetime, stopFlag)
 
         statusLabel.configure(text=f"Plotting Map...")
         statusLabel.update()
@@ -192,7 +260,7 @@ def cluster(filePath, datetime, insurance, statusLabel, stopFlag, callback):
         statusLabel.configure(text=f"Preparing Excel...")
         statusLabel.update()
         excel = exportMembersToExcel(routesData, stopFlag)
-        
+
         callback(map, excel, error=None)
 
     except Exception as e:

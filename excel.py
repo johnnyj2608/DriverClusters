@@ -122,7 +122,7 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
 
             dataRange = sheet.range('A1:I1').expand('down').value
             if not any(isinstance(i, list) for i in dataRange):
-                return []
+                return [], [], []
             df = pd.DataFrame(dataRange[1:], columns=dataRange[0])
             df['DoB'] = pd.to_datetime(df['DoB'], errors='coerce')
             df = df.replace({float('nan'): None})
@@ -130,10 +130,10 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
             mandatoryFields = ['ID', 'Name', 'DoB', 'Schedule', 'Address', 'City', 'Zip Code']
             if df[mandatoryFields].isna().any().any():
                 print("Missing mandatory data somewhere. Stopping early.")
-                return []
+                return [], [], []
 
             for idx, row in df.iterrows():
-                if stopFlag.value: return []
+                if stopFlag.value: return [], [], []
                 member = {
                     'id': str(int(row['ID'])),
                     'name': row['Name'],
