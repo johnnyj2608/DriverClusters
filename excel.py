@@ -97,7 +97,8 @@ def getSettingsFromExcel(wb):
             vehicle = {
                 "carId": carId,
                 "driver": str(row[1]).strip(),
-                "capacity": int(row[2])
+                "capacity": int(row[2]),
+                "trip": 1,
             }
             vehicles.append(vehicle)
         except:
@@ -196,7 +197,7 @@ def exportMembersToExcel(routesData, stopFlag):
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False)
+        df.to_excel(writer, index=False, sheet_name="Inbound")
     
     output.seek(0)
     return output

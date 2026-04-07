@@ -11,7 +11,7 @@ from tkcalendar import Calendar
 from PIL import Image
 
 from excel import validateExcelFile, ifExcelFileOpen
-from cluster import cluster
+from routing import generateRoutes
 
 class ProcessStop:
     def __init__(self):
@@ -319,7 +319,7 @@ class ClusterGUI:
         elif ampm == "AM" and hour == 12:
             hour = 0
 
-        thread = Thread(target = cluster, args=(
+        thread = Thread(target = generateRoutes, args=(
             self.folderLabel.cget("text"),
             datetime(year, month, day, hour, minute),
             self.insuranceCombo.get(),
