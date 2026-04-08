@@ -1,4 +1,5 @@
 import numpy as np
+from datetime import timedelta
 
 def haversine(lat1, lon1, lats2, lons2):
     R = 6371000  # Earth radius in meters
@@ -33,3 +34,28 @@ def sliceMatrixWedge(fullDistanceMatrix, fullTimeMatrix, wedgeMembers, memberToI
     wedgeTimeMatrix = fullTimeMatrix[np.ix_(indices, indices)]
 
     return wedgeDistanceMatrix.tolist(), wedgeTimeMatrix.tolist()
+
+def computeTimes(route, times, startTime, reverse=False):
+    cumulativeTimes = [None] * len(route)
+    currentTime = startTime
+
+    if reverse:
+        for i in range(len(route) - 1, -1, -1):
+            if i == len(route) - 1:
+                cumulativeTimes[i] = currentTime
+            else:
+                currIdx = route[i]
+                nextIdx = route[i + 1]
+                travelSeconds = times[currIdx][nextIdx]
+                currentTime += timedelta(seconds=travelSeconds)
+                cumulativeTimes[i] = currentTime
+    else:
+        cumulativeTimes[0] = currentTime
+        for i in range(1, len(route)):
+            prevIdx = route[i - 1]
+            currIdx = route[i]
+            travelSeconds = times[prevIdx][currIdx]
+            currentTime += timedelta(seconds=travelSeconds)
+            cumulativeTimes[i] = currentTime
+
+    return cumulativeTimes, currentTime

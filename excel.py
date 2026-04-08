@@ -167,38 +167,47 @@ def getMembersFromExcel(filePath, date, insurance, stopFlag):
         return depot, vehicles, members
         
 def exportMembersToExcel(routesData, stopFlag):
-    data = []
+    inboundTimes = {"Pickup": "homePickupTime", "Arrival": "depotArrivalTime"}
+    outboundTimes = {"Pickup": "depotDepartTime", "Arrival": "homeArrivalTime"}
 
-    for trip in routesData:
-        if stopFlag.value: return None
-        driver = trip["driver"]
-        carId = trip["carId"]
+    def buildMemberData(routesData, timeFields, stopFlag):
+        data = []
+        for trip in routesData:
+            if stopFlag.value: return None
+            for member in trip["members"]:
+                row = {
+                    "ID": member.get("id"),
+                    "Name": member.get("name"),
+                    "Birth Date": member.get("birthDate"),
+                    "Schedule": member.get("schedule"),
+                    "Address": member.get("address"),
+                    "City": member.get("city"),
+                    "Zip": member.get("zip"),
+                    "Car": trip["driver"],
+                    "Driver": trip["carId"],
+                }
+                for field_name, member_key in timeFields.items():
+                    row[field_name] = member.get(member_key)
+                data.append(row)
 
-        for member in trip["members"]:
-            data.append({
-                "ID": member.get("id"),
-                "Name": member.get("name"),
-                "Birth Date": member.get("birthDate"),
-                "Schedule": member.get("schedule"),
-                "Address": member.get("address"),
-                "City": member.get("city"),
-                "Zip": member.get("zip"),
-                "Car": carId,
-                "Driver": driver,
-                "Pickup": member.get("pickup"),
-                "Arrival": member.get("arrival"),
-            })
-
-    df = pd.DataFrame(data)
-    df["ID"] = pd.to_numeric(df["ID"], errors="coerce")
-    df = df.sort_values(by="ID")
-    df["Birth Date"] = pd.to_datetime(df["Birth Date"], errors="coerce").dt.date
-    df["Zip"] = df["Zip"].astype(str).str.zfill(5)
+        # Convert to DataFrame and apply formatting here
+        df = pd.DataFrame(data)
+        df["ID"] = pd.to_numeric(df["ID"], errors="coerce")
+        df.sort_values(by="ID", inplace=True)
+        df["Birth Date"] = pd.to_datetime(df["Birth Date"], errors="coerce").dt.date
+        df["Zip"] = df["Zip"].astype(str).str.zfill(5)
+        df["Pickup"] = pd.to_datetime(df["Pickup"], errors="coerce").dt.strftime("%I:%M %p")
+        df["Arrival"] = pd.to_datetime(df["Arrival"], errors="coerce").dt.strftime("%I:%M %p")
+        return df
+    
+    inboundDf = buildMemberData(routesData, inboundTimes, stopFlag)
+    outboundDf = buildMemberData(routesData, outboundTimes, stopFlag)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Inbound")
-    
+        inboundDf.to_excel(writer, index=False, sheet_name="Inbound")
+        outboundDf.to_excel(writer, index=False, sheet_name="Outbound")
+
     output.seek(0)
     return output
 

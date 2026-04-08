@@ -1,7 +1,7 @@
 import traceback
 import random
 from datetime import timedelta
-from utils import sliceMatrixWedge
+from utils import sliceMatrixWedge, computeTimes
 from cluster import calcMemberWedges, calcVehicleWedges
 from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import getDistanceTimeMatrix, computeRoutes
@@ -76,7 +76,8 @@ def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
 
 def processRouteData(wedgeRoutes, initialTime, stopFlag):
     trips = []
-    arrivalTimes = {}
+    inboundEndTimes = {}
+    outboundEndTimes = {}
 
     for data in wedgeRoutes:
         if stopFlag.value: return None
@@ -100,22 +101,13 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
                 "members": []
             }
 
-            startTime = arrivalTimes.get(vehicleId, initialTime)
-            randomOffset = random.randint(0, 5)
-            startTime += timedelta(minutes=randomOffset)
+            inboundStartTime = inboundEndTimes.get(vehicleId, initialTime)
+            inboundTimes, inboundEndTime = computeTimes(route, times, inboundStartTime, reverse=False)
+            inboundEndTimes[vehicleId] = inboundEndTime
 
-            cumulativeTime = [startTime]
-            totalTime = startTime
-
-            # Compute cumulative times along the route
-            for i in range(1, len(route)):
-                prevIdx = route[i - 1]
-                currIdx = route[i]
-                seconds = times[prevIdx][currIdx]
-                totalTime += timedelta(seconds=seconds)
-                cumulativeTime.append(totalTime)
-
-            arrivalTimes[vehicleId] = totalTime
+            outboundStartTime = outboundEndTimes.get(vehicleId, initialTime + timedelta(hours=5))
+            outboundTimes, outboundEndTime = computeTimes(route, times, outboundStartTime, reverse=True)
+            outboundEndTimes[vehicleId] = outboundEndTime
 
             for stopNum, idx in enumerate(route):
                 if idx == 0:  # skip depot
@@ -126,8 +118,14 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
                 tripData["members"].append({
                     **member,
                     "stopNum": stopNum,
-                    "pickup": cumulativeTime[stopNum].strftime("%I:%M %p"),
-                    "arrival": totalTime.strftime("%I:%M %p")
+
+                    # Inbound
+                    "homePickupTime": inboundTimes[stopNum],
+                    "depotArrivalTime": inboundEndTime,
+
+                    # Outbound
+                    "depotDepartTime": outboundStartTime,
+                    "homeArrivalTime": outboundTimes[stopNum]
                 })
 
             trips.append(tripData)
