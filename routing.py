@@ -8,7 +8,7 @@ from cvrp import getDistanceTimeMatrix, computeRoutes
 from plot import plotCoordinatesOnMap
 
 def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
-    innerRadius, innerAngle, outerSplits = 500, 90, 3
+    innerRadius, innerAngle, outerSplits = 2000, 90, 3
     memberWedges = calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopFlag)
     outerWedges = memberWedges["outer"]
     innerWedges = memberWedges["inner"]

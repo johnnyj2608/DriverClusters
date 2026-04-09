@@ -120,4 +120,19 @@ def computeRoutes(
         if i not in usedIndices
     ]
 
-    return routes, timeMatrix, assignedMembers, leftoverMembers
+    usedIndicesSorted = sorted(usedIndices)
+    remappedRoutes = []
+    for route in routes:
+        newRoute = []
+        for idx in route:
+            if idx == 0:
+                newRoute.append(0)
+            elif idx - 1 in usedIndices:
+                newIdx = usedIndicesSorted.index(idx - 1) + 1  # +1 because depot=0
+                newRoute.append(newIdx)
+            else:
+                # skip unassigned optional members
+                continue
+        remappedRoutes.append(newRoute)
+
+    return remappedRoutes, timeMatrix, assignedMembers, leftoverMembers
