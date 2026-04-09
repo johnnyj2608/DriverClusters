@@ -1,3 +1,4 @@
+import random
 import numpy as np
 from datetime import timedelta
 
@@ -35,7 +36,7 @@ def sliceMatrixWedge(fullDistanceMatrix, fullTimeMatrix, wedgeMembers, memberToI
 
     return wedgeDistanceMatrix.tolist(), wedgeTimeMatrix.tolist()
 
-def computeTimes(route, times, startTime, reverse=False):
+def computeTimes(route, times, startTime, reverse=False, maxRandomMinutes=5):
     cumulativeTimes = [None] * len(route)
     currentTime = startTime
 
@@ -47,6 +48,10 @@ def computeTimes(route, times, startTime, reverse=False):
                 currIdx = route[i]
                 nextIdx = route[i + 1]
                 travelSeconds = times[currIdx][nextIdx]
+
+                randomDelay = random.randint(0, maxRandomMinutes * 60)
+                travelSeconds += randomDelay
+
                 currentTime += timedelta(seconds=travelSeconds)
                 cumulativeTimes[i] = currentTime
     else:
@@ -55,6 +60,10 @@ def computeTimes(route, times, startTime, reverse=False):
             prevIdx = route[i - 1]
             currIdx = route[i]
             travelSeconds = times[prevIdx][currIdx]
+
+            randomDelay = random.randint(0, maxRandomMinutes * 60)
+            travelSeconds += randomDelay
+
             currentTime += timedelta(seconds=travelSeconds)
             cumulativeTimes[i] = currentTime
 
