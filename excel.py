@@ -1,8 +1,10 @@
 import io
+import random
 import psutil
 import pandas as pd
 import xlwings as xw
 import openpyxl  # needed for pandas to_excel
+from datetime import timedelta
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 
@@ -190,18 +192,33 @@ def exportMembersToExcel(routesData, stopFlag):
                     row[field_name] = member.get(member_key)
                 data.append(row)
 
-        # Convert to DataFrame and apply formatting here
         df = pd.DataFrame(data)
         df["ID"] = pd.to_numeric(df["ID"], errors="coerce")
         df.sort_values(by="ID", inplace=True)
         df["Birth Date"] = pd.to_datetime(df["Birth Date"], errors="coerce").dt.date
         df["Zip"] = df["Zip"].astype(str).str.zfill(5)
-        df["Pickup"] = pd.to_datetime(df["Pickup"], errors="coerce").dt.strftime("%I:%M %p")
-        df["Arrival"] = pd.to_datetime(df["Arrival"], errors="coerce").dt.strftime("%I:%M %p")
+        df["Pickup"] = pd.to_datetime(df["Pickup"], errors="coerce")
+        df["Arrival"] = pd.to_datetime(df["Arrival"], errors="coerce")
         return df
     
     inboundDf = buildMemberData(routesData, inboundTimes, stopFlag)
     outboundDf = buildMemberData(routesData, outboundTimes, stopFlag)
+
+    for car in inboundDf['Car'].unique():
+        inboundVehicle = inboundDf[inboundDf['Car'] == car]
+        outboundVehicle = outboundDf[outboundDf['Car'] == car]
+
+        lastInboundArrival = inboundVehicle['Arrival'].max()
+        firstOutboundPickup = outboundVehicle['Pickup'].min()
+
+        if firstOutboundPickup < lastInboundArrival:
+            delay = (lastInboundArrival - firstOutboundPickup) + timedelta(minutes=random.randint(0, 5))
+            outboundDf.loc[outboundVehicle.index, 'Pickup'] += delay
+            outboundDf.loc[outboundVehicle.index, 'Arrival'] += delay
+
+    for df in [inboundDf, outboundDf]:
+        df["Pickup"] = df["Pickup"].dt.strftime("%I:%M %p")
+        df["Arrival"] = df["Arrival"].dt.strftime("%I:%M %p")
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:

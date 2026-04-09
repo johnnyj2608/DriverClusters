@@ -1,4 +1,5 @@
 import traceback
+import random
 from datetime import timedelta
 from utils import sliceMatrixWedge, computeTimes
 from cluster import calcMemberWedges, calcVehicleWedges
@@ -99,12 +100,19 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
                 "trip": vehicle["trip"],
                 "members": []
             }
-
-            inboundStartTime = inboundEndTimes.get(vehicleId, initialTime)
+            
+            randomDelay = random.randint(0, 5)
+            inboundStartTime = inboundEndTimes.get(
+                vehicleId, 
+                initialTime + timedelta(minutes=randomDelay))
             inboundTimes, inboundEndTime = computeTimes(route, times, inboundStartTime, reverse=False)
             inboundEndTimes[vehicleId] = inboundEndTime
 
-            outboundStartTime = outboundEndTimes.get(vehicleId, initialTime + timedelta(hours=5))
+            randomDelay = random.randint(0, 5)
+            outboundStartTime = outboundEndTimes.get(
+                vehicleId,
+                initialTime.replace(hour=12, minute=0) + timedelta(minutes=randomDelay)
+            )
             outboundTimes, outboundEndTime = computeTimes(route, times, outboundStartTime, reverse=True)
             outboundEndTimes[vehicleId] = outboundEndTime
 
