@@ -12,3 +12,6 @@ venv/
 
 # Ignore HTML output
 *.html
+
+# Ignore parquet files
+*.parquet
