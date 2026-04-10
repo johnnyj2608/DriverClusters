@@ -109,9 +109,10 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
             inboundEndTimes[vehicleId] = inboundEndTime
 
             randomDelay = random.randint(0, 5)
+            noonTime = initialTime.replace(hour=12, minute=0, second=0, microsecond=0)
             outboundStartTime = outboundEndTimes.get(
                 vehicleId,
-                initialTime.replace(hour=12, minute=0) + timedelta(minutes=randomDelay)
+                max(noonTime, inboundEndTime + timedelta(hours=4)) + timedelta(minutes=randomDelay)
             )
             outboundTimes, outboundEndTime = computeTimes(route, times, outboundStartTime, reverse=True)
             outboundEndTimes[vehicleId] = outboundEndTime
