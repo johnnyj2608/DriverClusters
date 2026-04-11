@@ -64,11 +64,12 @@ def computeRoutes(
     manager = pywrapcp.RoutingIndexManager(len(distanceMatrix), numVehicles, 0)
     routing = pywrapcp.RoutingModel(manager)
 
-    # Distance callback
-    def distanceCallback(fromIndex, toIndex):
-        return int(distanceMatrix[manager.IndexToNode(fromIndex)][manager.IndexToNode(toIndex)])
-    transitCallbackIndex = routing.RegisterTransitCallback(distanceCallback)
-    routing.SetArcCostEvaluatorOfAllVehicles(transitCallbackIndex)
+    # Time callback
+    def timeCallback(fromIndex, toIndex):
+        return int(timeMatrix[manager.IndexToNode(fromIndex)][manager.IndexToNode(toIndex)])
+
+    timeCallbackIndex = routing.RegisterTransitCallback(timeCallback)
+    routing.SetArcCostEvaluatorOfAllVehicles(timeCallbackIndex)
 
     # Capacity callback
     def demandCallback(fromIndex):
