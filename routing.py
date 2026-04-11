@@ -2,14 +2,16 @@ import traceback
 import random
 from datetime import timedelta
 from utils import sliceMatrixWedge, computeTimes
-from cluster import calcMemberWedges, calcVehicleWedges
+from cluster import buildCityClusters, calcMemberWedges, calcVehicleWedges
 from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import getDistanceTimeMatrix, computeRoutes
 from plot import plotCoordinatesOnMap
 
-def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
+def routeByWedges(members, depot, vehicles, stopFlag):
     innerRadius, innerAngle, outerSplits = 2000, 90, 3
-    memberWedges = calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopFlag)
+    cityClusters = buildCityClusters(members)
+    mainMembers = cityClusters.pop("MAIN")["members"]
+    memberWedges = calcMemberWedges(mainMembers, depot, innerRadius, innerAngle, outerSplits, stopFlag)
     outerWedges = memberWedges["outer"]
     innerWedges = memberWedges["inner"]
 
@@ -43,10 +45,6 @@ def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
                 memberToIndex=memberToIndex
             )
 
-            totalWedges = len(vehiclesMap)
-            statusLabel.configure(text=f"Setting Wedge {i}/{totalWedges}...")
-            statusLabel.update()
-
             routes, times, assigned, leftover = computeRoutes(
                 wedgeMembers,
                 optionalMembers,
@@ -66,6 +64,7 @@ def routeByWedges(members, depot, vehicles, statusLabel, stopFlag):
             if includeInner:
                 innerWedges[wedge // outerSplits]["members"] = leftover
 
+    # get which wedge the city belongs to and combine with outer
     outerVehicles = calcVehicleWedges(vehicles, outerWedges, stopFlag)
     innerVehicles = calcVehicleWedges(vehicles, innerWedges, stopFlag)
 
@@ -150,7 +149,7 @@ def generateRoutes(filePath, initialTime, insurance, statusLabel, stopFlag, call
         
         statusLabel.configure(text=f"Setting Wedges...")
         statusLabel.update()
-        wedgeRoutes = routeByWedges(members, depot, vehicles, statusLabel, stopFlag)
+        wedgeRoutes = routeByWedges(members, depot, vehicles, stopFlag)
 
         statusLabel.configure(text=f"Processing Data...")
         statusLabel.update()

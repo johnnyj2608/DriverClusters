@@ -2,6 +2,31 @@ import numpy as np
 from collections import defaultdict
 from utils import haversine, depotBearing
 
+def buildCityClusters(members):
+
+    groups = defaultdict(lambda: {"members": [], "count": 0})
+
+    for m in members:
+        city = m["city"]
+
+        # --------------------------
+        # NYC GROUPING RULES
+        # --------------------------
+
+        if city in ["New York", "Bronx"]:
+            key = "MANHATTAN_BRONX"
+
+        elif city == "Staten Island":
+            key = "STATEN_ISLAND"
+
+        else:
+            key = "MAIN"
+
+        groups[key]["members"].append(m)
+        groups[key]["count"] += 1
+
+    return groups
+
 def calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopFlag):
     numFans = int(360 / innerAngle)
     totalOuterWedges = numFans * outerSplits
