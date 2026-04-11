@@ -3,44 +3,13 @@ import numpy as np
 import geopandas as gpd
 import h3
 import pickle
+import glob
 
 H3_RESOLUTION = 8
 
 
 # -----------------------------
-# LOAD HVFHV DATA (CLEAN + SAMPLE)
-# -----------------------------
-def loadHvfhv(path, sampleSize=500_000):
-    df = pd.read_parquet(path)
-
-    df = df[
-        [
-            "pickup_datetime",
-            "dropoff_datetime",
-            "PULocationID",
-            "DOLocationID"
-        ]
-    ].copy()
-
-    df["pickup_datetime"] = pd.to_datetime(df["pickup_datetime"])
-    df["dropoff_datetime"] = pd.to_datetime(df["dropoff_datetime"])
-
-    df["durationSec"] = (
-        df["dropoff_datetime"] - df["pickup_datetime"]
-    ).dt.total_seconds()
-
-    # filter bad trips
-    df = df[(df["durationSec"] > 60) & (df["durationSec"] < 7200)]
-
-    # sample for speed
-    if len(df) > sampleSize:
-        df = df.sample(sampleSize, random_state=42)
-
-    return df
-
-
-# -----------------------------
-# TAXI ZONES → CENTROIDS
+# ZONES → CENTROIDS
 # -----------------------------
 def buildZoneCentroidMap(shpPath):
     zones = gpd.read_file(shpPath)
@@ -49,118 +18,132 @@ def buildZoneCentroidMap(shpPath):
     zoneMap = {}
     for _, row in zones.iterrows():
         zoneId = int(row["LocationID"])
-        lat = row["centroid"].y
-        lon = row["centroid"].x
-        zoneMap[zoneId] = (lat, lon)
+        zoneMap[zoneId] = (row["centroid"].y, row["centroid"].x)
 
     return zoneMap
 
 
 # -----------------------------
-# ADD LAT/LON
+# STREAM FILES (NO CONCAT)
 # -----------------------------
-def addLatLon(df, zoneMap):
-    df["puLat"] = df["PULocationID"].map(lambda z: zoneMap.get(z, (np.nan, np.nan))[0])
-    df["puLon"] = df["PULocationID"].map(lambda z: zoneMap.get(z, (np.nan, np.nan))[1])
+def processFiles(folderPath, zoneMap, sampleSize=2_000_000):
 
-    df["doLat"] = df["DOLocationID"].map(lambda z: zoneMap.get(z, (np.nan, np.nan))[0])
-    df["doLon"] = df["DOLocationID"].map(lambda z: zoneMap.get(z, (np.nan, np.nan))[1])
+    files = glob.glob(folderPath + "/*.parquet")
 
-    df = df.dropna(subset=["puLat", "puLon", "doLat", "doLon"])
-    return df
+    print(f"Found {len(files)} files")
+
+    baseCounts = {}
+    hourSum = {}
+    monthSum = {}
+    globalSum = 0
+    globalCount = 0
+
+    for f in files:
+        print("Processing:", f)
+
+        df = pd.read_parquet(f)
+
+        df = df[
+            [
+                "pickup_datetime",
+                "dropoff_datetime",
+                "PULocationID",
+                "DOLocationID"
+            ]
+        ].copy()
+
+        df["pickup_datetime"] = pd.to_datetime(df["pickup_datetime"])
+        df["dropoff_datetime"] = pd.to_datetime(df["dropoff_datetime"])
+
+        df["durationSec"] = (
+            df["dropoff_datetime"] - df["pickup_datetime"]
+        ).dt.total_seconds()
+
+        # filter early (IMPORTANT for memory)
+        df = df[(df["durationSec"] > 60) & (df["durationSec"] < 7200)]
+
+        # sample per file
+        if len(df) > sampleSize // len(files):
+            df = df.sample(sampleSize // len(files), random_state=42)
+
+        df["hour"] = df["pickup_datetime"].dt.hour
+        df["month"] = df["pickup_datetime"].dt.month
+
+        # convert zones → lat/lon
+        df["puLat"] = df["PULocationID"].map(lambda z: zoneMap.get(z, (np.nan, np.nan))[0])
+        df["puLon"] = df["PULocationID"].map(lambda z: zoneMap.get(z, (np.nan, np.nan))[1])
+
+        df["doLat"] = df["DOLocationID"].map(lambda z: zoneMap.get(z, (np.nan, np.nan))[0])
+        df["doLon"] = df["DOLocationID"].map(lambda z: zoneMap.get(z, (np.nan, np.nan))[1])
+
+        df = df.dropna()
+
+        # H3 encoding
+        df["puCell"] = df.apply(lambda r: h3.latlng_to_cell(r.puLat, r.puLon, H3_RESOLUTION), axis=1)
+        df["doCell"] = df.apply(lambda r: h3.latlng_to_cell(r.doLat, r.doLon, H3_RESOLUTION), axis=1)
+
+        # accumulate stats (NO giant dataframe)
+        for r in df.itertuples():
+
+            key = (r.puCell, r.doCell)
+
+            baseCounts[key] = baseCounts.get(key, 0) + r.durationSec
+
+            hourSum[r.hour] = hourSum.get(r.hour, 0) + r.durationSec
+            monthSum[r.month] = monthSum.get(r.month, 0) + r.durationSec
+
+            globalSum += r.durationSec
+            globalCount += 1
+
+    return baseCounts, hourSum, monthSum, globalSum, globalCount
 
 
 # -----------------------------
-# ADD H3 CELLS
+# BUILD FINAL MODEL
 # -----------------------------
-def addH3Cells(df):
-    df["puCell"] = df.apply(
-        lambda r: h3.latlng_to_cell(r.puLat, r.puLon, H3_RESOLUTION),
-        axis=1
-    )
+def buildModel(baseCounts, hourSum, monthSum, globalSum, globalCount):
 
-    df["doCell"] = df.apply(
-        lambda r: h3.latlng_to_cell(r.doLat, r.doLon, H3_RESOLUTION),
-        axis=1
-    )
+    baseModel = {}
+    for k, v in baseCounts.items():
+        baseModel[k] = v  # (we'll normalize later if needed)
 
-    return df
+    globalMean = globalSum / globalCount
 
+    hourFactor = {
+        k: (v / globalCount) / globalMean for k, v in hourSum.items()
+    }
 
-# -----------------------------
-# BUILD MODEL (AGGREGATION STEP)
-# -----------------------------
-def buildH3Model(df):
-    df["hour"] = df["pickup_datetime"].dt.hour
+    monthFactor = {
+        k: (v / globalCount) / globalMean for k, v in monthSum.items()
+    }
 
-    # base OD travel times
-    baseModel = (
-        df.groupby(["puCell", "doCell"])["durationSec"]
-        .mean()
-        .to_dict()
-    )
-
-    # global baseline
-    globalMean = df["durationSec"].mean()
-
-    # hourly scaling factor
-    hourStats = df.groupby("hour")["durationSec"].mean()
-    hourFactor = (hourStats / globalMean).to_dict()
-
-    return baseModel, hourFactor, globalMean
+    return baseModel, hourFactor, monthFactor, globalMean
 
 
 # -----------------------------
 # SAVE MODEL
 # -----------------------------
-def saveModel(baseModel, hourFactor, globalMean, path="h3Model.pkl"):
+def saveModel(model, path="h3Model.pkl"):
     with open(path, "wb") as f:
-        pickle.dump((baseModel, hourFactor, globalMean), f)
+        pickle.dump(model, f)
 
 
 # -----------------------------
-# LOAD MODEL
+# RUN
 # -----------------------------
-def loadModel(path="h3Model.pkl"):
-    with open(path, "rb") as f:
-        return pickle.load(f)
-
-
-# -----------------------------
-# PREDICTION
-# -----------------------------
-def estimateTime(puCell, doCell, hour,
-                 baseModel, hourFactor, globalMean):
-
-    base = baseModel.get((puCell, doCell), globalMean)
-    factor = hourFactor.get(hour, 1.0)
-
-    return base * factor
-
-
-# -----------------------------
-# PIPELINE
-# -----------------------------
-
-hvfhvPath = "fhvhv_tripdata_2025-04.parquet"
+folderPath = "fhvhv_data_2025"
 zoneShpPath = "taxiZones/taxi_zones.shp"
-
-print("Loading data...")
-df = loadHvfhv(hvfhvPath)
 
 print("Loading zones...")
 zoneMap = buildZoneCentroidMap(zoneShpPath)
 
-print("Adding coordinates...")
-df = addLatLon(df, zoneMap)
+print("Training streaming model...")
+baseCounts, hourSum, monthSum, globalSum, globalCount = processFiles(folderPath, zoneMap)
 
-print("Building H3 grid...")
-df = addH3Cells(df)
+print("Building final model...")
+model = buildModel(baseCounts, hourSum, monthSum, globalSum, globalCount)
 
-print("Training aggregated model...")
-baseModel, hourFactor, globalMean = buildH3Model(df)
+print("Saving...")
+saveModel(model)
 
-print("Saving model...")
-saveModel(baseModel, hourFactor, globalMean)
-
-print("DONE ✔ Model saved as h3Model.pkl")
+print("DONE ✔ Memory-safe model built")
