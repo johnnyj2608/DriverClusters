@@ -2,10 +2,15 @@ import traceback
 import random
 from datetime import timedelta
 from utils import sliceMatrixWedge, computeTimes
-from cluster import buildCityClusters, calcMemberWedges, calcVehicleWedges
 from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import getDistanceTimeMatrix, computeRoutes
 from plot import plotCoordinatesOnMap
+from cluster import (
+    buildCityClusters,
+    mergeCityToWedges,
+    calcMemberWedges,
+    calcVehicleWedges,
+)
 
 def routeByWedges(members, depot, vehicles, stopFlag):
     innerRadius, innerAngle, outerSplits = 2000, 90, 3
@@ -64,7 +69,7 @@ def routeByWedges(members, depot, vehicles, stopFlag):
             if includeInner:
                 innerWedges[wedge // outerSplits]["members"] = leftover
 
-    # get which wedge the city belongs to and combine with outer
+    mergeCityToWedges(cityClusters, depot, outerWedges, innerAngle, outerSplits)
     outerVehicles = calcVehicleWedges(vehicles, outerWedges, stopFlag)
     innerVehicles = calcVehicleWedges(vehicles, innerWedges, stopFlag)
 
