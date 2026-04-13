@@ -27,15 +27,6 @@ def buildCityClusters(members):
 
     return groups
 
-def computeWedgeIndex(bearing, innerAngle, outerSplits):
-    sliceAngle = innerAngle / outerSplits
-
-    fanIndex = int(bearing // innerAngle)
-    diffAngle = (bearing - fanIndex * innerAngle + 360) % 360
-    splitIndex = int(min(diffAngle // sliceAngle, outerSplits - 1))
-
-    return fanIndex * outerSplits + splitIndex
-
 def mergeCityToWedges(cityClusters, depot, outerWedges, innerAngle, outerSplits):
     sliceAngle = innerAngle / outerSplits
 
@@ -79,11 +70,9 @@ def calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopF
         "count": len(members),
     }
 
-    # Convert member data to numpy arrays
     lats = np.array([m['lat'] for m in members])
     lons = np.array([m['lon'] for m in members])
 
-    # Compute distances and bearings vectorized
     dists = haversine(depot[0], depot[1], lats, lons)
     bearings = depotBearing(depot, lats, lons)
 
@@ -96,6 +85,9 @@ def calcMemberWedges(members, depot, innerRadius, innerAngle, outerSplits, stopF
 
     for idx, member in enumerate(members):
         if stopFlag.value: return None
+
+        member["bearing"] = bearings[idx]
+
         if dists[idx] <= innerRadius:
             wedges["inner"][fanIndices[idx]]["members"].append(member)
             wedges["inner"][fanIndices[idx]]["count"] += 1

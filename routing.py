@@ -27,7 +27,7 @@ def routeByWedges(members, depot, vehicles, stopFlag):
     allRoutes = []
 
     def processWedges(wedges, vehiclesMap, includeInner=False):
-        for i, (wedge, vehiclesList) in enumerate(vehiclesMap.items(), start=1):
+        for wedge, vehiclesList in vehiclesMap.items():
             if stopFlag.value:
                 return None
 
@@ -38,7 +38,33 @@ def routeByWedges(members, depot, vehicles, stopFlag):
 
             optionalMembers = []
             if includeInner:
-                optionalMembers = innerWedges[wedge // outerSplits]["members"]
+                sliceAngle = innerAngle / outerSplits
+                centerAngle = (wedge + 0.5) * sliceAngle
+
+                halfWindow = 45
+
+                start = (centerAngle - halfWindow) % 360
+                end = (centerAngle + halfWindow) % 360
+
+                def inWindow(b):
+                    if start < end:
+                        return start <= b <= end
+                    else:
+                        return b >= start or b <= end
+                    
+                innerIdx = wedge // outerSplits
+                numFans = len(innerWedges)
+
+                candidateIndices = [
+                    innerIdx,
+                    (innerIdx - 1) % numFans,
+                    (innerIdx + 1) % numFans
+                ]
+
+                for idx in candidateIndices:
+                    for m in innerWedges[idx]["members"]:
+                        if inWindow(m["bearing"]):
+                            optionalMembers.append(m)
 
             if not wedgeMembers and not optionalMembers:
                 continue
@@ -67,7 +93,13 @@ def routeByWedges(members, depot, vehicles, stopFlag):
             })
 
             if includeInner:
-                innerWedges[wedge // outerSplits]["members"] = leftover
+                for m in optionalMembers:
+                    if id(m) in leftover:
+                        continue  # not used, keep it
+
+                    innerWedge = innerWedges[int(m["bearing"] // innerAngle)]
+                    innerWedge["members"].remove(m)
+                    innerWedge["count"] -= 1
 
     mergeCityToWedges(cityClusters, depot, outerWedges, innerAngle, outerSplits)
     outerVehicles = calcVehicleWedges(vehicles, outerWedges, stopFlag)

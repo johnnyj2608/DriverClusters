@@ -115,11 +115,11 @@ def computeRoutes(
 
     assignedMembers = [allMembers[i] for i in usedIndices]
 
-    leftoverMembers = [
-        allMembers[i]
+    leftoverMembers = {
+        id(allMembers[i])
         for i in range(mandatoryCount, len(allMembers))
         if i not in usedIndices
-    ]
+    }
 
     usedIndicesSorted = sorted(usedIndices)
     remappedRoutes = []
