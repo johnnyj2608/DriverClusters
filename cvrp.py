@@ -52,11 +52,9 @@ def computeRoutes(
         distanceMatrix, timeMatrix = getDistanceTimeMatrix(locations)
 
     numVehicles = len(vehicles)
-    vehicleCapacities = []
-    for v in vehicles:
-        vehicleCapacities.append(v["capacity"])
+    vehicleCapacities = [v["capacity"] for v in vehicles]
 
-    mandatoryDemand = sum(demands[1:mandatoryCount+1])
+    mandatoryDemand = sum(demands[1:mandatoryCount + 1])
     totalCapacity = sum(vehicleCapacities)
     if mandatoryDemand > totalCapacity:
         raise ValueError("Not enough capacity")
@@ -64,7 +62,6 @@ def computeRoutes(
     manager = pywrapcp.RoutingIndexManager(len(distanceMatrix), numVehicles, 0)
     routing = pywrapcp.RoutingModel(manager)
 
-    # Time callback
     def timeCallback(fromIndex, toIndex):
         return int(timeMatrix[manager.IndexToNode(fromIndex)][manager.IndexToNode(toIndex)])
 
@@ -110,7 +107,7 @@ def computeRoutes(
                 index = solution.Value(routing.NextVar(index))
 
             route.append(manager.IndexToNode(index))
-            if len(route) > 2:  # depot -> something -> depot
+            if len(route) > 2:
                 routes.append(route)
 
     assignedMembers = [allMembers[i] for i in usedIndices]
@@ -121,19 +118,30 @@ def computeRoutes(
         if i not in usedIndices
     }
 
-    usedIndicesSorted = sorted(usedIndices)
+    indexMap = {idx: k + 1 for k, idx in enumerate(sorted(usedIndices))}
+    depotDistance = lambda i: distanceMatrix[0][i + 1]
+
     remappedRoutes = []
+
     for route in routes:
-        newRoute = []
-        for idx in route:
-            if idx == 0:
-                newRoute.append(0)
-            elif idx - 1 in usedIndices:
-                newIdx = usedIndicesSorted.index(idx - 1) + 1  # +1 because depot=0
-                newRoute.append(newIdx)
-            else:
-                # skip unassigned optional members
-                continue
+        internalNodes = [n for n in route if n != 0]
+
+        originalindices = [
+            list(usedIndices)[n - 1]
+            for n in internalNodes
+        ]
+
+        originalindices.sort(
+            key=depotDistance,
+            reverse=True
+        )
+
+        newRoute = [0]
+
+        for i in originalindices:
+            newRoute.append(indexMap[i])
+
+        newRoute.append(0)
         remappedRoutes.append(newRoute)
 
     return remappedRoutes, timeMatrix, assignedMembers, leftoverMembers
