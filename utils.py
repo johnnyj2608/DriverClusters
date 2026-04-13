@@ -2,6 +2,11 @@ import random
 import numpy as np
 from datetime import timedelta
 
+def getRandomDelay(maxRandomMinutes=5, debug=False):
+    if debug:
+        return 0
+    return random.randint(0, maxRandomMinutes * 60)
+
 def haversine(lat1, lon1, lats2, lons2):
     R = 6371000  # Earth radius in meters
     lat1, lon1 = np.radians(lat1), np.radians(lon1)
@@ -36,7 +41,7 @@ def sliceMatrixWedge(fullDistanceMatrix, fullTimeMatrix, wedgeMembers, memberToI
 
     return wedgeDistanceMatrix.tolist(), wedgeTimeMatrix.tolist()
 
-def computeTimes(route, times, startTime, reverse=False, maxRandomMinutes=5):
+def computeTimes(route, times, startTime, reverse=False):
     cumulativeTimes = [None] * len(route)
     currentTime = startTime
 
@@ -49,8 +54,7 @@ def computeTimes(route, times, startTime, reverse=False, maxRandomMinutes=5):
                 nextIdx = route[i + 1]
                 travelSeconds = times[currIdx][nextIdx]
 
-                randomDelay = random.randint(0, maxRandomMinutes * 60)
-                travelSeconds += randomDelay
+                travelSeconds += getRandomDelay()
 
                 currentTime += timedelta(seconds=travelSeconds)
                 cumulativeTimes[i] = currentTime
@@ -61,8 +65,7 @@ def computeTimes(route, times, startTime, reverse=False, maxRandomMinutes=5):
             currIdx = route[i]
             travelSeconds = times[prevIdx][currIdx]
 
-            randomDelay = random.randint(0, maxRandomMinutes * 60)
-            travelSeconds += randomDelay
+            travelSeconds += getRandomDelay()
 
             currentTime += timedelta(seconds=travelSeconds)
             cumulativeTimes[i] = currentTime

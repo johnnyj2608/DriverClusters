@@ -1,7 +1,6 @@
 import traceback
-import random
 from datetime import timedelta
-from utils import sliceMatrixWedge, computeTimes
+from utils import getRandomDelay, sliceMatrixWedge, computeTimes
 from excel import getMembersFromExcel, exportMembersToExcel
 from cvrp import getDistanceTimeMatrix, computeRoutes
 from plot import plotCoordinatesOnMap
@@ -137,18 +136,16 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
                 "members": []
             }
             
-            randomDelay = random.randint(0, 5)
             inboundStartTime = inboundEndTimes.get(
                 vehicleId, 
-                initialTime + timedelta(minutes=randomDelay))
+                initialTime + timedelta(seconds=getRandomDelay()))
             inboundTimes, inboundEndTime = computeTimes(route, times, inboundStartTime, reverse=False)
             inboundEndTimes[vehicleId] = inboundEndTime
 
-            randomDelay = random.randint(0, 5)
             noonTime = initialTime.replace(hour=12, minute=0, second=0, microsecond=0)
             outboundStartTime = outboundEndTimes.get(
                 vehicleId,
-                max(noonTime, inboundEndTime + timedelta(hours=4)) + timedelta(minutes=randomDelay)
+                max(noonTime, inboundEndTime + timedelta(hours=4)) + timedelta(seconds=getRandomDelay())
             )
             outboundTimes, outboundEndTime = computeTimes(route, times, outboundStartTime, reverse=True)
             outboundEndTimes[vehicleId] = outboundEndTime

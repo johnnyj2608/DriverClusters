@@ -1,9 +1,9 @@
 import io
-import random
 import psutil
 import pandas as pd
 import xlwings as xw
 import openpyxl  # needed for pandas to_excel
+from utils import getRandomDelay
 from datetime import timedelta
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
@@ -212,11 +212,14 @@ def exportMembersToExcel(routesData, stopFlag):
         firstOutboundPickup = outboundVehicle['Pickup'].min()
 
         if firstOutboundPickup < lastInboundArrival:
-            delay = (lastInboundArrival - firstOutboundPickup) + timedelta(minutes=random.randint(0, 5))
+            delay = (lastInboundArrival - firstOutboundPickup) + timedelta(seconds=getRandomDelay())
             outboundDf.loc[outboundVehicle.index, 'Pickup'] += delay
             outboundDf.loc[outboundVehicle.index, 'Arrival'] += delay
 
     for df in [inboundDf, outboundDf]:
+        df["Pickup"] = df["Pickup"].dt.floor("min")
+        df["Arrival"] = df["Arrival"].dt.floor("min")
+
         df["Pickup"] = df["Pickup"].dt.strftime("%I:%M %p")
         df["Arrival"] = df["Arrival"].dt.strftime("%I:%M %p")
 
