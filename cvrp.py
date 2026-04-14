@@ -90,11 +90,11 @@ def computeRoutes(
     solution = routing.SolveWithParameters(searchParameters)
 
     routes = []
-    usedIndices = set()
+    usedNodes = set()
 
     if solution:
-        for vehicleId in range(numVehicles):
-            index = routing.Start(vehicleId)
+        for v in range(numVehicles):
+            index = routing.Start(v)
             route = []
 
             while not routing.IsEnd(index):
@@ -102,46 +102,30 @@ def computeRoutes(
                 route.append(node)
 
                 if node != 0:
-                    usedIndices.add(node - 1)
+                    usedNodes.add(node)
 
                 index = solution.Value(routing.NextVar(index))
 
-            route.append(manager.IndexToNode(index))
+            route.append(0)
+
             if len(route) > 2:
                 routes.append(route)
 
-    assignedMembers = [allMembers[i] for i in usedIndices]
+    nodeToMember = {i + 1: m for i, m in enumerate(allMembers)}
 
     leftoverMembers = {
         id(allMembers[i])
         for i in range(mandatoryCount, len(allMembers))
-        if i not in usedIndices
+        if (i + 1) not in usedNodes
     }
 
-    indexMap = {idx: k + 1 for k, idx in enumerate(sorted(usedIndices))}
-    depotDistance = lambda i: distanceMatrix[0][i + 1]
+    def depotDistance(node):
+        return distanceMatrix[0][node]
 
-    remappedRoutes = []
-
+    cleanedRoutes = []
     for route in routes:
         internalNodes = [n for n in route if n != 0]
+        internalNodes.sort(key=depotDistance, reverse=True)
+        cleanedRoutes.append(internalNodes)
 
-        originalindices = [
-            list(usedIndices)[n - 1]
-            for n in internalNodes
-        ]
-
-        originalindices.sort(
-            key=depotDistance,
-            reverse=True
-        )
-
-        newRoute = [0]
-
-        for i in originalindices:
-            newRoute.append(indexMap[i])
-
-        newRoute.append(0)
-        remappedRoutes.append(newRoute)
-
-    return remappedRoutes, timeMatrix, assignedMembers, leftoverMembers
+    return cleanedRoutes, timeMatrix, nodeToMember, leftoverMembers

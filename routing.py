@@ -12,7 +12,7 @@ from cluster import (
 )
 
 def routeByWedges(members, depot, vehicles, stopFlag):
-    innerRadius, innerAngle, outerSplits = 2000, 90, 3
+    innerRadius, innerAngle, outerSplits = 1500, 90, 3
     cityClusters = buildCityClusters(members)
     mainMembers = cityClusters.pop("MAIN")["members"]
     memberWedges = calcMemberWedges(mainMembers, depot, innerRadius, innerAngle, outerSplits, stopFlag)
@@ -75,7 +75,7 @@ def routeByWedges(members, depot, vehicles, stopFlag):
                 memberToIndex=memberToIndex
             )
 
-            routes, times, assigned, leftover = computeRoutes(
+            routes, times, nodeToMember, leftover = computeRoutes(
                 wedgeMembers,
                 optionalMembers,
                 depot,
@@ -85,10 +85,10 @@ def routeByWedges(members, depot, vehicles, stopFlag):
             )
 
             allRoutes.append({
-                "members": assigned,
                 "routes": routes,
                 "times": times,
-                "vehicles": vehiclesList
+                "nodeToMember": nodeToMember,
+                "vehicles": vehiclesList,
             })
 
             if includeInner:
@@ -119,8 +119,8 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
 
         routes = data["routes"]
         vehicles = data["vehicles"]
-        members = data["members"]
         times = data["times"]
+        nodeToMember = data["nodeToMember"]
 
         for trip, route in enumerate(routes):
             if stopFlag.value: return None
@@ -151,15 +151,12 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
             outboundTimes, outboundEndTime = computeTimes(route, times, outboundStartTime, reverse=True)
             outboundEndTimes[vehicleId] = outboundEndTime
 
-            for stopNum, idx in enumerate(route):
-                if idx == 0:  # skip depot
-                    continue
-
-                member = members[idx - 1]
+            for stopNum, node in enumerate(route):
+                member = nodeToMember.get(node)
 
                 tripData["members"].append({
                     **member,
-                    "stopNum": stopNum,
+                    "stopNum": stopNum+1,
 
                     # Inbound
                     "homePickupTime": inboundTimes[stopNum],
