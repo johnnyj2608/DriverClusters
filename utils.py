@@ -41,7 +41,7 @@ def sliceMatrixWedge(fullDistanceMatrix, fullTimeMatrix, wedgeMembers, memberToI
 
     return wedgeDistanceMatrix.tolist(), wedgeTimeMatrix.tolist()
 
-def computeTimes(route, times, startTime, reverse=False):
+def computeTimes(route, times, startTime, reverse=False, skipDepot=False):
     cumulativeTimes = [None] * len(route)
     currentTime = startTime
 
@@ -52,8 +52,8 @@ def computeTimes(route, times, startTime, reverse=False):
             else:
                 currIdx = route[i]
                 nextIdx = route[i + 1]
-                travelSeconds = times[currIdx][nextIdx]
 
+                travelSeconds = times[currIdx][nextIdx]
                 travelSeconds += getRandomDelay()
 
                 currentTime += timedelta(seconds=travelSeconds)
@@ -63,9 +63,13 @@ def computeTimes(route, times, startTime, reverse=False):
         for i in range(1, len(route)):
             prevIdx = route[i - 1]
             currIdx = route[i]
-            travelSeconds = times[prevIdx][currIdx]
 
+            travelSeconds = times[prevIdx][currIdx]
             travelSeconds += getRandomDelay()
+
+            if skipDepot and prevIdx == 0:
+                cumulativeTimes[i] = currentTime
+                continue
 
             currentTime += timedelta(seconds=travelSeconds)
             cumulativeTimes[i] = currentTime

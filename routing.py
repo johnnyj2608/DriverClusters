@@ -135,11 +135,12 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
                 "trip": vehicle["trip"],
                 "members": []
             }
-            
+
+            firstTrip = vehicleId not in inboundEndTimes
             inboundStartTime = inboundEndTimes.get(
                 vehicleId, 
                 initialTime + timedelta(seconds=getRandomDelay()))
-            inboundTimes, inboundEndTime = computeTimes(route, times, inboundStartTime, reverse=False)
+            inboundTimes, inboundEndTime = computeTimes(route, times, inboundStartTime, skipDepot=firstTrip)
             inboundEndTimes[vehicleId] = inboundEndTime
 
             noonTime = initialTime.replace(hour=12, minute=0, second=0, microsecond=0)
