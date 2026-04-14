@@ -69,8 +69,8 @@ class ClusterGUI:
         self.browseFrame.grid(row=row, column=0, pady=4, padx=10)
         self.browseFrame.grid_columnconfigure(0, weight=1)
 
-        self.folderLabel = ctk.CTkLabel(master=self.browseFrame, text="No Excel file selected")
-        self.folderLabel.grid(row=0, column=0, pady=0, padx=10)
+        self.fileLabel = ctk.CTkLabel(master=self.browseFrame, text="No Excel file selected")
+        self.fileLabel.grid(row=0, column=0, pady=0, padx=10)
 
         self.browseButton = ctk.CTkButton(master=self.browseFrame, text="Select Excel file", command=self.browseFolder)
         self.browseButton.grid(row=1, column=0, pady=0, padx=10)
@@ -161,7 +161,7 @@ class ClusterGUI:
         if self.filePath and insurances:
             self.enableUserActions()
             fileName = os.path.basename(self.filePath)
-            self.folderLabel.configure(text=fileName, text_color=Colors.textDefault)
+            self.fileLabel.configure(text=fileName, text_color=Colors.textDefault)
 
             today = datetime.now()
             
@@ -184,7 +184,7 @@ class ClusterGUI:
             self.insuranceCombo.configure(values=insurances)
             self.insuranceCombo.set(insurances[0])
         else:
-            self.folderLabel.configure(text="No members in template", text_color=Colors.textError)
+            self.fileLabel.configure(text="No members in template", text_color=Colors.textError)
             self.disableUserActions()
             self.browseButton.configure(state="normal")
 
@@ -310,7 +310,7 @@ class ClusterGUI:
             self.calculateButton.configure(text="Stopping...")
             return
         
-        if ifExcelFileOpen(self.folderLabel.cget("text")):
+        if ifExcelFileOpen(self.fileLabel.cget("text")):
             self.statusLabel.configure(text="Must close selected Excel file", text_color=Colors.textError)
             return
 
@@ -340,7 +340,7 @@ class ClusterGUI:
             hour = 0
 
         thread = Thread(target = generateRoutes, args=(
-            self.folderLabel.cget("text"),
+            self.filePath,
             datetime(year, month, day, hour, minute),
             self.insuranceCombo.get(),
             self.stopFlag,
