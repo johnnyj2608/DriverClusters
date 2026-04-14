@@ -185,8 +185,8 @@ def exportMembersToExcel(routesData, stopFlag):
                     "Address": member.get("address"),
                     "City": member.get("city"),
                     "Zip": member.get("zip"),
-                    "Car": trip["driver"],
-                    "Driver": trip["carId"],
+                    "Car": trip["carId"],
+                    "Driver": trip["driver"],
                 }
                 for field_name, member_key in timeFields.items():
                     row[field_name] = member.get(member_key)
