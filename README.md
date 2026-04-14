@@ -44,7 +44,6 @@ The system is designed for **fleet dispatch, shuttle coordination, and insurance
 - CustomTkinter (modern UI components)
 - Pandas / NumPy (data processing)
 - GeoPandas (geospatial processing)
-- H3 (hexagonal spatial indexing)
 - OSRM (Open Source Routing Machine)
 - Google OR-Tools (CVRP optimization)
 - OpenPyXL / xlwings (Excel automation)
