@@ -8,10 +8,26 @@ from threading import Thread
 import customtkinter as ctk
 from customtkinter import filedialog , CTkToplevel
 from tkcalendar import Calendar
+from tkinter import messagebox
 from PIL import Image
 
 from excel import validateExcelFile, ifExcelFileOpen
 from routing import generateRoutes
+
+class Colors:
+    # Backgrounds
+    frameBg = "gray17"
+
+    # Text
+    textDefault = "gray84"
+    textError = "red"
+
+    # Button states
+    buttonStop = "#800000"
+    buttonStopHover = "#98423d"
+
+    buttonPrimary = "#1f538d"
+    buttonPrimaryHover = "#14375e"
 
 class ProcessStop:
     def __init__(self):
@@ -49,7 +65,7 @@ class ClusterGUI:
         self.statusLabel.grid(row=6, column=0, pady=0, padx=10)     # Completion %
 
     def initBrowseFrame(self, row):
-        self.browseFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.browseFrame = ctk.CTkFrame(master=self.frame, fg_color=Colors.frameBg)
         self.browseFrame.grid(row=row, column=0, pady=4, padx=10)
         self.browseFrame.grid_columnconfigure(0, weight=1)
 
@@ -60,7 +76,7 @@ class ClusterGUI:
         self.browseButton.grid(row=1, column=0, pady=0, padx=10)
 
     def initDateFrame(self, row):
-        self.dateFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.dateFrame = ctk.CTkFrame(master=self.frame, fg_color=Colors.frameBg)
         self.dateFrame.grid(row=row, column=0, columnspan=3, pady=4, padx=10)
         self.dateFrame.grid_columnconfigure((0, 4), weight=1)
 
@@ -92,7 +108,7 @@ class ClusterGUI:
         self.datePickerButton.grid(row=1, column=4, pady=0, padx=(5, 10), sticky="w")
 
     def initTimeFrame(self, row):
-        self.timeFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.timeFrame = ctk.CTkFrame(master=self.frame, fg_color=Colors.frameBg)
         self.timeFrame.grid(row=row, column=0, pady=4, padx=10)
         self.timeFrame.grid_columnconfigure((0, 2), weight=1)
 
@@ -115,7 +131,7 @@ class ClusterGUI:
         self.ampmSwitch.grid(row=1, column=2, pady=0, padx=1)
 
     def initInsuranceFrame(self, row):
-        self.insuranceFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.insuranceFrame = ctk.CTkFrame(master=self.frame, fg_color=Colors.frameBg)
         self.insuranceFrame.grid(row=row, column=0, pady=4, padx=10)
         self.insuranceFrame.grid_columnconfigure(0, weight=1)
         
@@ -126,7 +142,7 @@ class ClusterGUI:
         self.insuranceCombo.grid(row=1, column=0, pady=0, padx=10, sticky="ew")
 
     def initButtonFrame(self, row):
-        self.buttonFrame = ctk.CTkFrame(master=self.frame, fg_color="gray17")
+        self.buttonFrame = ctk.CTkFrame(master=self.frame, fg_color=Colors.frameBg)
         self.buttonFrame.grid(row=row, column=0, pady=4, padx=10)
         self.buttonFrame.grid_columnconfigure(0, weight=1)
 
@@ -145,7 +161,7 @@ class ClusterGUI:
         if self.filePath and insurances:
             self.enableUserActions()
             fileName = os.path.basename(self.filePath)
-            self.folderLabel.configure(text=fileName, text_color="gray84")
+            self.folderLabel.configure(text=fileName, text_color=Colors.textDefault)
 
             today = datetime.now()
             
@@ -168,7 +184,7 @@ class ClusterGUI:
             self.insuranceCombo.configure(values=insurances)
             self.insuranceCombo.set(insurances[0])
         else:
-            self.folderLabel.configure(text="No members in template", text_color="red")
+            self.folderLabel.configure(text="No members in template", text_color=Colors.textError)
             self.disableUserActions()
             self.browseButton.configure(state="normal")
 
@@ -295,12 +311,16 @@ class ClusterGUI:
             return
         
         if ifExcelFileOpen(self.folderLabel.cget("text")):
-            self.statusLabel.configure(text="Must close selected Excel file", text_color="red")
+            self.statusLabel.configure(text="Must close selected Excel file", text_color=Colors.textError)
             return
 
         self.runningFlag = True
-        self.calculateButton.configure(text="Stop", fg_color='#800000', hover_color='#98423d')
-        self.statusLabel.configure(text="", text_color="gray84")
+        self.calculateButton.configure(
+            text="Stop", 
+            fg_color=Colors.buttonStop, 
+            hover_color=Colors.buttonStopHover
+            )
+        self.statusLabel.configure(text="", text_color=Colors.textDefault)
         self.disableUserActions()
         self.calculateButton.configure(state="normal")  
 
@@ -323,8 +343,8 @@ class ClusterGUI:
             self.folderLabel.cget("text"),
             datetime(year, month, day, hour, minute),
             self.insuranceCombo.get(),
-            self.statusLabel,
             self.stopFlag,
+            self.updateStatus,
             self.clusterComplete))
         
         thread.start()
@@ -333,11 +353,20 @@ class ClusterGUI:
         self.runningFlag = False
         self.stopFlag.value = False
         self.enableUserActions()
-        self.calculateButton.configure(text="Calculate", fg_color='#1f538d', hover_color='#14375e')
+        self.calculateButton.configure(
+            text="Calculate", 
+            fg_color=Colors.buttonPrimary, 
+            hover_color=Colors.buttonPrimaryHover,
+            )
 
         if error:
-            self.statusLabel.configure(text=f"Error: {error}", text_color="red")
-            self.statusLabel.update()
+            self.updateStatus(f"Error: {error}", Colors.textError)
+
+            messagebox.showerror(
+                "Route Generation Failed",
+                error
+            )
+
             return
         
         if mapHtml:
@@ -364,9 +393,7 @@ class ClusterGUI:
         parts.append(f"{seconds}s")
 
         formattedTime = " ".join(parts)
-
-        self.statusLabel.configure(text="Completed in "+formattedTime)
-        self.statusLabel.update()
+        self.updateStatus(f"Completed in {formattedTime}")
 
     def openMap(self):
         if self.map:
@@ -401,6 +428,9 @@ class ClusterGUI:
         x = int(((screen_width/2) - (width/2)) * scale_factor)
         y = int(((screen_height/2) - (height/1.5)) * scale_factor)
         return f"{width}x{height}+{x}+{y}"
+    
+    def updateStatus(self, text, color=Colors.textDefault):
+        self.root.after(0, lambda: self.statusLabel.configure(text=text, text_color=color))
 
     def run(self):
         self.root.mainloop()

@@ -173,33 +173,27 @@ def processRouteData(wedgeRoutes, initialTime, stopFlag):
 
     return trips
 
-def generateRoutes(filePath, initialTime, insurance, statusLabel, stopFlag, callback):
+def generateRoutes(filePath, initialTime, insurance, stopFlag, progressCallback, completionCallback):
     try:
-        statusLabel.configure(text=f"Retrieving Members...")
-        statusLabel.update() 
+        progressCallback("Retrieving Members...")
         depot, vehicles, members = getMembersFromExcel(filePath, initialTime, insurance, stopFlag)
         if not members:
             raise ValueError("Missing data")
-        
-        statusLabel.configure(text=f"Setting Wedges...")
-        statusLabel.update()
+
+        progressCallback("Setting Wedges...")
         wedgeRoutes = routeByWedges(members, depot, vehicles, stopFlag)
 
-        statusLabel.configure(text=f"Processing Data...")
-        statusLabel.update()
+        progressCallback("Processing Routes...")
         routesData = processRouteData(wedgeRoutes, initialTime, stopFlag)
 
-        statusLabel.configure(text=f"Plotting Map...")
-        statusLabel.update()
+        progressCallback("Plotting Map...")
         mapHtml = plotCoordinatesOnMap(depot, routesData, initialTime, stopFlag)
 
-        statusLabel.configure(text=f"Preparing Excel...")
-        statusLabel.update()
+        progressCallback("Preparing Excel...")
         excelBytes = exportMembersToExcel(routesData, stopFlag)
 
-        callback(mapHtml, excelBytes, error=None)
+        completionCallback(mapHtml, excelBytes, error=None)
 
     except Exception as e:
-        print("An error occurred:", str(e))
         traceback.print_exc()
-        callback(mapHtml=None, excelBytes=None, error=str(e))
+        completionCallback(mapHtml=None, excelBytes=None, error=str(e))
