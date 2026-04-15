@@ -86,7 +86,10 @@ def computeRoutes(
         routing.AddDisjunction([index], penalty)
 
     searchParameters = pywrapcp.DefaultRoutingSearchParameters()
-    searchParameters.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
+    searchParameters.first_solution_strategy = routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION
+    searchParameters.local_search_metaheuristic = routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+    searchParameters.time_limit.seconds = 10
+    searchParameters.log_search = False
     solution = routing.SolveWithParameters(searchParameters)
 
     routes = []

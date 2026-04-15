@@ -12,7 +12,7 @@ from cluster import (
 )
 
 def routeByWedges(members, depot, vehicles, stopFlag):
-    innerRadius, innerAngle, outerSplits = 1500, 90, 3
+    innerRadius, innerAngle, outerSplits = 1000, 90, 3
     cityClusters = buildCityClusters(members)
     mainMembers = cityClusters.pop("MAIN")["members"]
     memberWedges = calcMemberWedges(mainMembers, depot, innerRadius, innerAngle, outerSplits, stopFlag)
